@@ -12,7 +12,7 @@ from datetime import datetime
 from core.logger import Logger
 from core.config import Config
 from core.plugin_manager import PluginManager
-
+from core.ai_registry import AIRegistry
 
 class Kernel:
 
@@ -23,6 +23,7 @@ class Kernel:
         self.running = False
         self.logger = Logger()
         self.plugin_manager = PluginManager(Config.PLUGIN_FOLDER)
+        self.ai_registry = AIRegistry()
 
     def boot(self):
 
@@ -41,10 +42,17 @@ class Kernel:
 
         plugins = self.plugin_manager.list_plugins()
 
+        for plugin in plugins:
+            self.ai_registry.register(plugin)
+
         self.logger.info(f"Plugins Loaded : {len(plugins)}")
 
         for plugin in plugins:
             self.logger.info(f"Plugin: {plugin}")
+
+        self.logger.info("AI Registry Initialized")
+
+        self.ai_registry.print_registry()
 
         self.logger.info("System Ready")
 
