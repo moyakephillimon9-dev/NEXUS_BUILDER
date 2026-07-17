@@ -8,6 +8,7 @@ Version   : 0.3.1
 
 import uuid
 from datetime import datetime
+from plugins.planner_ai.agent import PlannerAI
 
 
 class ManagerAI:
