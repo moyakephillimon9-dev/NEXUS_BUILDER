@@ -1,9 +1,9 @@
 """
 NEXUS Builder
-Manager AI
+Manager AI — Swarm Orchestrator
 
 Module ID : MANAGER-001
-Version   : 0.1.0
+Version   : 0.2.1
 """
 
 import uuid
@@ -12,21 +12,31 @@ from datetime import datetime
 
 class ManagerAI:
     """
-    The first AI employee of NEXUS.
-    Responsible for receiving goals and creating projects.
+    Central coordinator of the NEXUS AI Engineering Company.
+    Responsible for project creation, task routing,
+    employee management, and workflow orchestration.
     """
 
     def __init__(self, shared_memory):
         self.memory = shared_memory
-        print("[Manager AI] Connected to Shared Memory")
+        self.employee_registry = {}
+        print("[Manager AI] Connected to Shared Memory.")
 
     def start(self):
-        print("[Manager AI] Ready")
+        print("[Manager AI] Swarm Control Online.")
+
+    def register_employee(self, employee_id, agent_instance):
+        """
+        Registers an AI employee.
+        """
+
+        employee_id = employee_id.upper()
+
+        self.employee_registry[employee_id] = agent_instance
+
+        print(f"[Manager AI] Registered Employee: {employee_id}")
 
     def formulate_10_step_plan(self, high_level_goal):
-        """
-        Creates a new project entry inside Shared Memory.
-        """
 
         task_id = f"TSK-{str(uuid.uuid4())[:6].upper()}"
 
@@ -35,6 +45,11 @@ class ManagerAI:
             "goal": high_level_goal,
             "created_at": datetime.utcnow().isoformat(),
             "status": "ANALYZING_RISKS",
+            "assigned_worker": None,
+            "architecture": None,
+            "code": None,
+            "review": None,
+            "tests": None,
             "milestones": [
                 "1. Market opportunity assessment",
                 "2. Strategic risk analysis",
@@ -58,6 +73,50 @@ class ManagerAI:
 
         return task_id
 
+    def dispatch_swarm_worker(self, task_id, worker_id):
+
+        worker_id = worker_id.upper()
+
+        project_key = f"active_project_{task_id}"
+
+        project = self.memory.read(project_key)
+
+        if project is None:
+            print("[Manager AI] Project not found.")
+            return
+
+        if worker_id not in self.employee_registry:
+            print(f"[Manager AI] Employee '{worker_id}' not registered.")
+            return
+
+        project["assigned_worker"] = worker_id
+        project["status"] = "RESOURCE_ALLOCATED"
+
+        self.memory.write(project_key, project)
+
+        print(f"[Manager AI] Dispatching {worker_id}")
+
+        # Future AI employee execution hook.
+        # ArchitectAI, ProgrammerAI, TesterAI, etc.
+        self.employee_registry[worker_id].process_project_task(task_id)
+
+    def list_employees(self):
+
+        print("\nRegistered Employees")
+
+        if not self.employee_registry:
+            print("No employees registered.")
+            return
+
+        for employee in self.employee_registry:
+            print(f"✓ {employee}")
+
     def show_projects(self):
-        print("\nManager AI Projects")
+
+        print("\nCurrent Projects")
+
         self.memory.print_memory()
+
+
+
+
