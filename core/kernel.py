@@ -13,6 +13,7 @@ from core.logger import Logger
 from core.config import Config
 from core.plugin_manager import PluginManager
 from core.ai_registry import AIRegistry
+from core.shared_memory import SharedMemory
 
 class Kernel:
 
@@ -24,6 +25,7 @@ class Kernel:
         self.logger = Logger()
         self.plugin_manager = PluginManager(Config.PLUGIN_FOLDER)
         self.ai_registry = AIRegistry()
+        self.shared_memory = SharedMemory()
 
     def boot(self):
 
@@ -55,5 +57,11 @@ class Kernel:
         self.ai_registry.print_registry()
 
         self.logger.info("System Ready")
+
+        self.shared_memory.write("system", "ONLINE")
+
+        self.logger.info("Shared Memory Initialized")
+
+        self.shared_memory.print_memory()
 
         print("=" * 60)
