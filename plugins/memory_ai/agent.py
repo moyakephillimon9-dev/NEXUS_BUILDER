@@ -1,9 +1,12 @@
 """
 NEXUS Builder
-Memory AI — Enterprise Knowledge Engine
+Memory AI — Autonomous Semantic Graph Engine
 
 Module ID : MEMORY-001
-Version   : 4.0.0
+Version   : 6.0.0 (Enterprise Master Edition)
+
+PART 1
+Core Engine Initialization
 """
 
 from __future__ import annotations
@@ -14,99 +17,124 @@ import json
 import logging
 import os
 import shutil
-import time
-from dataclasses import dataclass, field, asdict
+import uuid
+
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+)
 
-# Optional performance upgrade
+# ==========================================================
+# Ultra Performance Event Loop
+# ==========================================================
+
 try:
     import uvloop
+
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 except ImportError:
     pass
 
-
-# ---------------------------------------------------------
-# LOGGING
-# ---------------------------------------------------------
+# ==========================================================
+# Enterprise Logger
+# ==========================================================
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 )
 
-logger = logging.getLogger("NEXUS.MemoryAI")
+logger = logging.getLogger("NEXUS-MEMORY")
 
+# ==========================================================
+# Engine Constants
+# ==========================================================
 
-# ---------------------------------------------------------
-# CONSTANTS
-# ---------------------------------------------------------
+ENGINE_NAME = "NEXUS MEMORY ENGINE"
 
-DATABASE_VERSION = "4.0.0"
+ENGINE_VERSION = "6.0.0"
 
+DATABASE_FILE = "memory/database.json"
 
-# ---------------------------------------------------------
-# MEMORY CATEGORIES
-# ---------------------------------------------------------
+BACKUP_FOLDER = "memory/backups"
 
-class MemoryCategory(str, Enum):
+MAX_BACKUPS = 20
+
+CACHE_VERSION = 2
+
+AUTO_SAVE_INTERVAL = 300
+
+MAINTENANCE_INTERVAL = 86400
+
+# ==========================================================
+# Shared Memory Interface
+# ==========================================================
+
+class SharedMemoryProtocol(Protocol):
+
+    def read(self, key: str) -> Any:
+        ...
+
+    def write(self, key: str, value: Any):
+        ...
+
+# ==========================================================
+# Knowledge Categories
+# ==========================================================
+
+class NodeCategory(str, Enum):
 
     PROJECT = "projects"
 
     ARCHITECTURE = "architectures"
 
-    CODE_PATTERN = "patterns"
+    LESSON = "lessons"
+
+    TEMPLATE = "templates"
 
     FAILURE = "failures"
 
-    SUCCESS = "best_practices"
+    SUCCESS = "successes"
 
     SECURITY = "security"
 
-    PERFORMANCE = "performance"
+    TEST = "tests"
 
-    DOCUMENTATION = "documentation"
+    REVIEW = "reviews"
 
-    DEPLOYMENT = "deployment"
+    DEPLOYMENT = "deployments"
 
+# ==========================================================
+# Learning Types
+# ==========================================================
 
-# ---------------------------------------------------------
-# CONFIGURATION
-# ---------------------------------------------------------
+class LessonType(str, Enum):
 
-@dataclass(slots=True)
-class MemoryConfig:
+    SUCCESS = "SUCCESS"
 
-    database_path: str = "memory/nexus_memory.json"
+    FAILURE = "FAILURE"
 
-    backup_directory: str = "memory/backups"
+    WARNING = "WARNING"
 
-    snapshot_directory: str = "memory/snapshots"
+    OPTIMIZATION = "OPTIMIZATION"
 
-    backup_retention_days: int = 7
-
-    autosave_interval: int = 60
-
-    maximum_backups: int = 100
-
-    enable_compression: bool = False
-
-    enable_integrity_check: bool = True
-
-
-# ---------------------------------------------------------
-# MEMORY RECORD
-# ---------------------------------------------------------
+# ==========================================================
+# Node Definition
+# ==========================================================
 
 @dataclass(slots=True)
-class MemoryRecord:
+class KnowledgeNode:
 
-    record_id: str
+    id: str
 
-    category: MemoryCategory
+    category: NodeCategory
 
     title: str
 
@@ -114,1083 +142,1410 @@ class MemoryRecord:
 
     tags: List[str] = field(default_factory=list)
 
-    author: str = "SYSTEM"
+    score: float = 0.0
 
     created_at: str = field(
-        default_factory=lambda:
-        datetime.now(timezone.utc).isoformat()
+        default_factory=lambda: datetime.now(
+            timezone.utc
+        ).isoformat()
     )
 
-    modified_at: str = field(
-        default_factory=lambda:
-        datetime.now(timezone.utc).isoformat()
-    )
-
-    checksum: Optional[str] = None
-
-    embedding: Optional[List[float]] = None
-
-
-# ---------------------------------------------------------
-# MEMORY AI
-# ---------------------------------------------------------
+# ==========================================================
+# Memory AI
+# ==========================================================
 
 class MemoryAI:
 
     """
-    Enterprise Knowledge Engine
+    Enterprise Semantic Knowledge Engine
 
     Responsibilities
 
-    • Persistent Knowledge
+        • Persistent Knowledge Database
 
-    • Learning
+        • Pattern Learning
 
-    • Search
+        • Architecture Memory
 
-    • Snapshots
+        • Deployment History
 
-    • Backups
+        • Failure Analysis
 
-    • Metrics
+        • Similarity Search
 
-    • Atomic Transactions
+        • Automatic Backup
 
-    • High-speed Cache
+        • Self-Healing Database
+
+        • Semantic Graph
+
+        • AI Experience Storage
     """
 
     def __init__(
 
         self,
 
-        shared_memory,
+        shared_memory: SharedMemoryProtocol,
 
-        config: MemoryConfig | None = None
+        database_path: str = DATABASE_FILE
 
     ):
 
-        self.shared_memory = shared_memory
+        self.memory = shared_memory
 
-        self.config = config or MemoryConfig()
+        self.database_path = Path(database_path)
 
-        self.database = Path(self.config.database_path)
-
-        self.backups = Path(self.config.backup_directory)
-
-        self.snapshots = Path(self.config.snapshot_directory)
+        self.backup_path = Path(BACKUP_FOLDER)
 
         self._lock = asyncio.Lock()
 
-        self._cache: Dict[str, Any] = {}
+        self._maintenance_task = None
 
-        self.metrics = {
+        self._autosave_task = None
 
-            "reads": 0,
+        self.cache: Dict[str, Any] = {}
 
-            "writes": 0,
-
-            "queries": 0,
-
-            "cache_hits": 0,
-
-            "cache_misses": 0,
-
-            "rollbacks": 0,
-
-            "snapshots": 0,
-
-            "uptime_started": time.time()
-        }
-
-        self.indexes = {
-
-            "tags": {},
-
-            "categories": {},
-
-            "titles": {}
-        }
+        logger.info("Connecting Memory AI...")
 
         self._bootstrap()
 
-        logger.info("Memory AI initialized successfully.")
+        logger.info("Memory AI Ready.")
 
-    # ---------------------------------------------------------
-    # BOOTSTRAP
-    # ---------------------------------------------------------
+    # ======================================================
 
     def _bootstrap(self):
 
         """
-        Creates required folders, initializes the database,
-        loads cache, rebuilds indexes and verifies integrity.
+        Prepare filesystem and cache.
         """
 
-        self.database.parent.mkdir(parents=True, exist_ok=True)
+        self.database_path.parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
-        self.backups.mkdir(parents=True, exist_ok=True)
+        self.backup_path.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
-        self.snapshots.mkdir(parents=True, exist_ok=True)
+        if not self.database_path.exists():
 
-        if not self.database.exists():
+            self.cache = {
 
-            logger.info("Creating new enterprise memory database...")
+                "manifest": {
 
-            initial_database = {
+                    "engine": ENGINE_NAME,
 
-                "system": {
+                    "version": ENGINE_VERSION,
 
-                    "database_version": DATABASE_VERSION,
-
-                    "created_at": datetime.now(
+                    "created": datetime.now(
                         timezone.utc
                     ).isoformat(),
 
-                    "last_checkpoint": datetime.now(
-                        timezone.utc
-                    ).isoformat(),
+                    "last_sync": None,
 
-                    "checksum": None
+                    "cache_version": CACHE_VERSION
 
                 },
 
-                "records": {
+                "graph": {
 
                     category.value: {}
 
-                    for category in MemoryCategory
+                    for category in NodeCategory
 
                 }
 
             }
 
-            initial_database["system"]["checksum"] = \
-                self._calculate_checksum(initial_database)
-
             with open(
-                self.database,
+                self.database_path,
                 "w",
                 encoding="utf-8"
-            ) as fp:
+            ) as f:
 
                 json.dump(
-                    initial_database,
-                    fp,
+                    self.cache,
+                    f,
                     indent=4
                 )
 
-        self._load_database()
-
-        self._rebuild_indexes()
-
-        logger.info("Enterprise Memory Database Ready.")
-
-
-    # ---------------------------------------------------------
-    # DATABASE LOADER
-    # ---------------------------------------------------------
-
-    def _load_database(self):
-
-        with open(
-
-            self.database,
-
-            "r",
-
-            encoding="utf-8"
-
-        ) as fp:
-
-            self._cache = json.load(fp)
-
-        if self.config.enable_integrity_check:
-
-            self._verify_integrity()
-
-
-    # ---------------------------------------------------------
-    # CHECKSUM
-    # ---------------------------------------------------------
-
-    def _verify_integrity(self):
-
-        expected = self._cache["system"].get("checksum")
-
-        tmp = json.loads(json.dumps(self._cache))
-
-        tmp["system"]["checksum"] = None
-
-        actual = self._calculate_checksum(tmp)
-
-        if expected != actual:
-
-            logger.warning(
-
-                "Database checksum mismatch detected."
-
+            logger.info(
+                "Created fresh memory database."
             )
 
         else:
 
+            with open(
+                self.database_path,
+                "r",
+                encoding="utf-8"
+            ) as f:
+
+                self.cache = json.load(f)
+
             logger.info(
-
-                "Database integrity verified."
-
+                "Database loaded into RAM cache."
             )
 
+    # ==========================================================
+    # ENGINE LIFECYCLE
+    # ==========================================================
 
-    def _calculate_checksum(
+    async def start(self):
+        """
+        Starts the Memory AI background services.
+        """
 
-        self,
+        logger.info("Starting Memory AI...")
 
-        data
-
-    ):
-
-        serialized = json.dumps(
-
-            data,
-
-            sort_keys=True
-
-        ).encode()
-
-        return hashlib.sha256(
-
-            serialized
-
-        ).hexdigest()
-
-
-    # ---------------------------------------------------------
-    # INDEX ENGINE
-    # ---------------------------------------------------------
-
-    def _rebuild_indexes(self):
-
-        self.indexes = {
-
-            "tags": {},
-
-            "categories": {},
-
-            "titles": {}
-
-        }
-
-        for category_name, bucket in \
-
-                self._cache["records"].items():
-
-            for record_id, record in bucket.items():
-
-                self.indexes["categories"] \
-                    .setdefault(
-
-                        category_name,
-
-                        set()
-
-                    ).add(record_id)
-
-                self.indexes["titles"][
-
-                    record["title"].lower()
-
-                ] = record_id
-
-                for tag in record.get(
-
-                    "tags",
-
-                    []
-
-                ):
-
-                    self.indexes["tags"] \
-                        .setdefault(
-
-                            tag.lower(),
-
-                            set()
-
-                        ).add(record_id)
-
-        logger.info(
-
-            "Indexes rebuilt successfully."
-
+        self._autosave_task = asyncio.create_task(
+            self._autosave_loop()
         )
 
-    # ---------------------------------------------------------
-    # ATOMIC WRITE ENGINE
-    # ---------------------------------------------------------
+        self._maintenance_task = asyncio.create_task(
+            self._maintenance_loop()
+        )
 
-    async def _atomic_commit(self):
+        logger.info("Memory AI Online.")
+
+    async def shutdown(self):
         """
-        Enterprise ACID-style commit.
+        Gracefully stops Memory AI.
+        """
 
-        Workflow
-        --------
-        1. Update checkpoint
-        2. Recalculate checksum
-        3. Write temporary database
-        4. Backup current database
-        5. Atomically replace database
-        6. Rollback automatically on failure
+        logger.info("Stopping Memory AI...")
+
+        if self._autosave_task:
+            self._autosave_task.cancel()
+
+        if self._maintenance_task:
+            self._maintenance_task.cancel()
+
+        try:
+            await self._atomic_save()
+
+        except Exception as e:
+            logger.error(e)
+
+        logger.info("Memory AI Offline.")
+
+    # ==========================================================
+    # DATABASE SAVE ENGINE
+    # ==========================================================
+
+    async def _atomic_save(self):
+        """
+        Safely writes database using atomic replacement.
         """
 
         async with self._lock:
 
-            temporary_database = self.database.with_suffix(".tmp")
+            temp_file = self.database_path.with_suffix(".tmp")
 
-            try:
+            self.cache["manifest"]["last_sync"] = (
+                datetime.now(timezone.utc).isoformat()
+            )
 
-                self._cache["system"]["last_checkpoint"] = (
-                    datetime.now(timezone.utc).isoformat()
-                )
+            loop = asyncio.get_running_loop()
 
-                # Refresh checksum
-                working_copy = json.loads(json.dumps(self._cache))
-                working_copy["system"]["checksum"] = None
+            await loop.run_in_executor(
 
-                checksum = self._calculate_checksum(working_copy)
+                None,
 
-                self._cache["system"]["checksum"] = checksum
+                self._write_json,
 
-                loop = asyncio.get_running_loop()
+                temp_file,
+
+                self.cache
+
+            )
+
+            if self.database_path.exists():
 
                 await loop.run_in_executor(
 
                     None,
 
-                    self._write_database,
-
-                    temporary_database,
-
-                    self._cache
+                    self._create_backup
 
                 )
 
-                self._create_backup()
+            os.replace(
+                temp_file,
+                self.database_path
+            )
 
-                os.replace(
-                    temporary_database,
-                    self.database
-                )
+            logger.info("Database committed successfully.")
 
-                self.metrics["writes"] += 1
+    # ==========================================================
+    # JSON WRITER
+    # ==========================================================
 
-                logger.info("Atomic commit successful.")
-
-            except Exception as exc:
-
-                self.metrics["rollbacks"] += 1
-
-                logger.error(
-                    "Atomic commit failed. Restoring database."
-                )
-
-                if temporary_database.exists():
-                    temporary_database.unlink()
-
-                self._restore_latest_backup()
-
-                raise RuntimeError(
-                    f"Commit failure: {exc}"
-                )
-
-
-    # ---------------------------------------------------------
-    # LOW LEVEL WRITER
-    # ---------------------------------------------------------
-
-    @staticmethod
-    def _write_database(path: Path, payload: dict):
+    def _write_json(
+        self,
+        path: Path,
+        data: Dict[str, Any]
+    ):
 
         with open(
             path,
             "w",
             encoding="utf-8"
-        ) as file:
+        ) as f:
 
             json.dump(
-                payload,
-                file,
+                data,
+                f,
                 indent=4,
                 ensure_ascii=False
             )
 
-
-    # ---------------------------------------------------------
-    # BACKUP ENGINE
-    # ---------------------------------------------------------
+    # ==========================================================
+    # BACKUP CREATION
+    # ==========================================================
 
     def _create_backup(self):
 
-        if not self.database.exists():
-            return
-
-        backup_name = (
-            f"backup_"
-            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        timestamp = datetime.now().strftime(
+            "%Y%m%d_%H%M%S"
         )
 
-        destination = self.backups / backup_name
+        backup_file = (
+            self.backup_path /
+            f"memory_{timestamp}.bak"
+        )
 
         shutil.copy2(
-            self.database,
-            destination
+            self.database_path,
+            backup_file
         )
 
         logger.info(
-            f"Backup created -> {destination.name}"
+            f"Backup created -> {backup_file.name}"
         )
 
-        self._cleanup_old_backups()
+    # ==========================================================
+    # BACKUP ROTATION
+    # ==========================================================
 
-
-    # ---------------------------------------------------------
-    # BACKUP RETENTION
-    # ---------------------------------------------------------
-
-    def _cleanup_old_backups(self):
+    def _rotate_backups(self):
+        """
+        Keep only the newest MAX_BACKUPS snapshots.
+        """
 
         backups = sorted(
-
-            self.backups.glob("*.json"),
-
-            key=lambda x: x.stat().st_mtime,
-
+            self.backup_path.glob("*.bak"),
+            key=lambda p: p.stat().st_mtime,
             reverse=True
-
         )
 
-        if len(backups) <= self.config.maximum_backups:
-            return
-
-        for file in backups[self.config.maximum_backups:]:
-
+        for old_backup in backups[MAX_BACKUPS:]:
             try:
-
-                file.unlink()
-
+                old_backup.unlink()
                 logger.info(
-                    f"Old backup removed -> {file.name}"
+                    f"Removed old backup: {old_backup.name}"
                 )
+            except Exception as e:
+                logger.warning(e)
 
-            except Exception:
+    # ==========================================================
+    # DATABASE RECOVERY
+    # ==========================================================
 
-                pass
-
-
-    # ---------------------------------------------------------
-    # RESTORE
-    # ---------------------------------------------------------
-
-    def _restore_latest_backup(self):
+    def _recover_database(self):
+        """
+        Restore latest healthy snapshot.
+        """
 
         backups = sorted(
-
-            self.backups.glob("*.json"),
-
-            key=lambda x: x.stat().st_mtime,
-
+            self.backup_path.glob("*.bak"),
+            key=lambda p: p.stat().st_mtime,
             reverse=True
-
         )
 
         if not backups:
-
-            logger.critical(
-                "No backup available for restoration."
+            logger.error(
+                "Recovery impossible. No backups found."
             )
-
             return
+
+        newest = backups[0]
 
         shutil.copy2(
-            backups[0],
-            self.database
+            newest,
+            self.database_path
         )
 
-        self._load_database()
+        with open(
+            self.database_path,
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            self.cache = json.load(f)
 
         logger.info(
-            "Latest backup restored successfully."
+            f"Recovered database from {newest.name}"
         )
 
-
-    # ---------------------------------------------------------
-    # SNAPSHOT ENGINE
-    # ---------------------------------------------------------
-
-    async def create_snapshot(self):
-
-        snapshot_name = (
-            f"snapshot_"
-            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        )
-
-        snapshot_path = self.snapshots / snapshot_name
-
-        loop = asyncio.get_running_loop()
-
-        await loop.run_in_executor(
-
-            None,
-
-            self._write_database,
-
-            snapshot_path,
-
-            self._cache
-
-        )
-
-        self.metrics["snapshots"] += 1
-
-        logger.info(
-            f"Snapshot saved -> {snapshot_name}"
-        )
-
-    # ---------------------------------------------------------
-    # RECORD VALIDATION
-    # ---------------------------------------------------------
-
-    def _validate_record(self, record: MemoryRecord):
-
-        if not record.record_id:
-            raise ValueError("record_id cannot be empty.")
-
-        if not record.title:
-            raise ValueError("title cannot be empty.")
-
-        if not isinstance(record.payload, dict):
-            raise TypeError("payload must be a dictionary.")
-
-        if not isinstance(record.tags, list):
-            raise TypeError("tags must be a list.")
-
-        return True
-
-
-    # ---------------------------------------------------------
-    # STORE RECORD
-    # ---------------------------------------------------------
-
-    async def commit_record(self, record: MemoryRecord):
-
-        self._validate_record(record)
-
-        record.modified_at = datetime.now(
-            timezone.utc
-        ).isoformat()
-
-        record.checksum = hashlib.sha256(
-
-            json.dumps(
-                record.payload,
-                sort_keys=True
-            ).encode()
-
-        ).hexdigest()
-
-        category = record.category.value
-
-        self._cache["records"][category][
-            record.record_id
-        ] = asdict(record)
-
-        self._index_record(record)
-
-        await self._atomic_commit()
-
-        logger.info(
-            f"Record stored -> {record.record_id}"
-        )
-
-
-    # ---------------------------------------------------------
-    # UPDATE RECORD
-    # ---------------------------------------------------------
-
-    async def update_record(
-
-        self,
-
-        record_id: str,
-
-        category: MemoryCategory,
-
-        updates: Dict[str, Any]
-
-    ):
-
-        bucket = self._cache["records"][
-            category.value
-        ]
-
-        if record_id not in bucket:
-            raise KeyError(record_id)
-
-        bucket[record_id].update(updates)
-
-        bucket[record_id]["modified_at"] = (
-
-            datetime.now(timezone.utc).isoformat()
-
-        )
-
-        await self._atomic_commit()
-
-        self._rebuild_indexes()
-
-        logger.info(
-            f"Record updated -> {record_id}"
-        )
-
-
-    # ---------------------------------------------------------
-    # DELETE RECORD
-    # ---------------------------------------------------------
-
-    async def delete_record(
-
-        self,
-
-        record_id: str,
-
-        category: MemoryCategory
-
-    ):
-
-        bucket = self._cache["records"][
-            category.value
-        ]
-
-        if record_id not in bucket:
-            return
-
-        del bucket[record_id]
-
-        await self._atomic_commit()
-
-        self._rebuild_indexes()
-
-        logger.info(
-            f"Record deleted -> {record_id}"
-        )
-
-
-    # ---------------------------------------------------------
-    # INDEX RECORD
-    # ---------------------------------------------------------
-
-    def _index_record(self, record: MemoryRecord):
-
-        category = record.category.value
-
-        self.indexes["categories"] \
-            .setdefault(category, set()) \
-            .add(record.record_id)
-
-        self.indexes["titles"][
-            record.title.lower()
-        ] = record.record_id
-
-        for tag in record.tags:
-
-            self.indexes["tags"] \
-                .setdefault(
-                    tag.lower(),
-                    set()
-                ) \
-                .add(record.record_id)
-
-
-    # ---------------------------------------------------------
-    # FETCH RECORD
-    # ---------------------------------------------------------
-
-    async def get_record(
-
-        self,
-
-        category: MemoryCategory,
-
-        record_id: str
-
-    ) -> Optional[dict]:
-
-        self.metrics["reads"] += 1
-
-        bucket = self._cache["records"][
-            category.value
-        ]
-
-        if record_id in bucket:
-
-            self.metrics["cache_hits"] += 1
-
-            return bucket[record_id]
-
-        self.metrics["cache_misses"] += 1
-
-        return None
-
-
-    # ---------------------------------------------------------
-    # RECORD EXISTS
-    # ---------------------------------------------------------
-
-    async def exists(
-
-        self,
-
-        category: MemoryCategory,
-
-        record_id: str
-
-    ) -> bool:
-
-        return record_id in self._cache[
-            "records"
-        ][
-            category.value
-        ]
-
-    # ---------------------------------------------------------
-    # SEARCH BY TAG
-    # ---------------------------------------------------------
-
-    async def query_by_tag(
-
-        self,
-
-        tag: str
-
-    ) -> List[dict]:
-
-        self.metrics["queries"] += 1
-
-        tag = tag.lower()
-
-        results = []
-
-        record_ids = self.indexes["tags"].get(tag, set())
-
-        for category in self._cache["records"].values():
-
-            for record_id in record_ids:
-
-                if record_id in category:
-
-                    results.append(category[record_id])
-
-        return results
-
-
-    # ---------------------------------------------------------
-    # SEARCH BY CATEGORY
-    # ---------------------------------------------------------
-
-    async def query_category(
-
-        self,
-
-        category: MemoryCategory
-
-    ) -> List[dict]:
-
-        self.metrics["queries"] += 1
-
-        return list(
-
-            self._cache["records"][
-
-                category.value
-
-            ].values()
-
-        )
-
-
-    # ---------------------------------------------------------
-    # SEARCH TITLE
-    # ---------------------------------------------------------
-
-    async def search_title(
-
-        self,
-
-        keyword: str
-
-    ) -> List[dict]:
-
-        self.metrics["queries"] += 1
-
-        keyword = keyword.lower()
-
-        results = []
-
-        for bucket in self._cache["records"].values():
-
-            for record in bucket.values():
-
-                if keyword in record["title"].lower():
-
-                    results.append(record)
-
-        return results
-
-
-    # ---------------------------------------------------------
-    # FULL TEXT SEARCH
-    # ---------------------------------------------------------
-
-    async def search(
-
-        self,
-
-        text: str
-
-    ) -> List[dict]:
-
-        self.metrics["queries"] += 1
-
-        text = text.lower()
-
-        results = []
-
-        for bucket in self._cache["records"].values():
-
-            for record in bucket.values():
-
-                searchable = json.dumps(
-
-                    record,
-
-                    ensure_ascii=False
-
-                ).lower()
-
-                if text in searchable:
-
-                    results.append(record)
-
-        return results
-
-
-    # ---------------------------------------------------------
-    # FILTER RECORDS
-    # ---------------------------------------------------------
-
-    async def filter(
-
-        self,
-
-        category: MemoryCategory | None = None,
-
-        author: str | None = None,
-
-        tag: str | None = None
-
-    ) -> List[dict]:
-
-        self.metrics["queries"] += 1
-
-        results = []
-
-        buckets = []
-
-        if category:
-
-            buckets.append(
-
-                self._cache["records"][
-
-                    category.value
-
-                ]
-
-            )
-
-        else:
-
-            buckets = self._cache["records"].values()
-
-        for bucket in buckets:
-
-            for record in bucket.values():
-
-                if author:
-
-                    if record["author"] != author:
-
-                        continue
-
-                if tag:
-
-                    if tag not in record["tags"]:
-
-                        continue
-
-                results.append(record)
-
-        return results
-
-
-    # ---------------------------------------------------------
-    # DATABASE STATISTICS
-    # ---------------------------------------------------------
-
-    async def statistics(self):
-
-        total_records = 0
-
-        category_breakdown = {}
-
-        for category in MemoryCategory:
-
-            count = len(
-
-                self._cache["records"][
-
-                    category.value
-
-                ]
-
-            )
-
-            category_breakdown[category.value] = count
-
-            total_records += count
-
-        return {
-
-            "database_version": DATABASE_VERSION,
-
-            "total_records": total_records,
-
-            "categories": category_breakdown,
-
-            "reads": self.metrics["reads"],
-
-            "writes": self.metrics["writes"],
-
-            "queries": self.metrics["queries"],
-
-            "cache_hits": self.metrics["cache_hits"],
-
-            "cache_misses": self.metrics["cache_misses"],
-
-            "rollbacks": self.metrics["rollbacks"],
-
-            "snapshots": self.metrics["snapshots"]
-
-        }
-
-
-    # ---------------------------------------------------------
-    # HEALTH REPORT
-    # ---------------------------------------------------------
-
-    async def health(self):
-
-        uptime = int(
-
-            time.time()
-
-            -
-
-            self.metrics["uptime_started"]
-
-        )
-
-        stats = await self.statistics()
-
-        stats["uptime_seconds"] = uptime
-
-        stats["database_file"] = str(self.database)
-
-        stats["backup_directory"] = str(self.backups)
-
-        stats["snapshot_directory"] = str(self.snapshots)
-
-        stats["status"] = "HEALTHY"
-
-        return stats
-
-    # ---------------------------------------------------------
-    # BACKGROUND MAINTENANCE
-    # ---------------------------------------------------------
-
-    async def start(self):
-        """
-        Starts all enterprise background services.
-        """
-
-        logger.info("Enterprise Memory Engine Online.")
-
-        asyncio.create_task(self._autosave_loop())
-        asyncio.create_task(self._snapshot_loop())
-        asyncio.create_task(self._maintenance_loop())
-
-
-    # ---------------------------------------------------------
-    # AUTOSAVE LOOP
-    # ---------------------------------------------------------
+    # ==========================================================
+    # AUTO SAVE LOOP
+    # ==========================================================
 
     async def _autosave_loop(self):
+        """
+        Saves database every AUTO_SAVE_INTERVAL seconds.
+        """
 
         while True:
 
             try:
 
                 await asyncio.sleep(
-                    self.config.autosave_interval
+                    AUTO_SAVE_INTERVAL
                 )
 
-                await self._atomic_commit()
+                await self._atomic_save()
 
-                logger.info(
-                    "Automatic checkpoint completed."
-                )
+            except asyncio.CancelledError:
+                break
 
-            except Exception as exc:
+            except Exception as e:
+                logger.error(e)
 
-                logger.error(
-                    f"Autosave failed: {exc}"
-                )
+    # ==========================================================
+    # MAINTENANCE LOOP
+    # ==========================================================
 
-
-    # ---------------------------------------------------------
-    # SNAPSHOT LOOP
-    # ---------------------------------------------------------
-
-    async def _snapshot_loop(self):
+    async def _maintenance_loop(self):
+        """
+        Daily optimization worker.
+        """
 
         while True:
 
             try:
 
-                await asyncio.sleep(3600)
+                await asyncio.sleep(
+                    MAINTENANCE_INTERVAL
+                )
 
-                await self.create_snapshot()
+                self._rotate_backups()
+
+                logger.info(
+                    "Maintenance completed."
+                )
+
+            except asyncio.CancelledError:
+                break
+
+            except Exception as e:
+                logger.error(e)
+
+    # ==========================================================
+    # PROJECT LEARNING ENGINE
+    # ==========================================================
+
+    async def learn_project(
+        self,
+        task_id: str
+    ):
+        """
+        Learns from a completed project and stores
+        semantic knowledge inside the graph.
+        """
+
+        key = f"active_project_{task_id}"
+
+        loop = asyncio.get_running_loop()
+
+        project = await loop.run_in_executor(
+            None,
+            self.memory.read,
+            key
+        )
+
+        if not project:
+            logger.warning(
+                f"Project {task_id} not found."
+            )
+            return
+
+        async with self._lock:
+
+            # --------------------------------------
+            # Store Project
+            # --------------------------------------
+
+            project_node = KnowledgeNode(
+
+                id=task_id,
+
+                category=NodeCategory.PROJECT,
+
+                title=project.get(
+                    "goal",
+                    "Unknown"
+                ),
+
+                payload=project,
+
+                tags=[
+                    project.get(
+                        "architecture",
+                        {}
+                    ).get(
+                        "framework",
+                        "Unknown"
+                    ),
+                    project.get(
+                        "status",
+                        "UNKNOWN"
+                    )
+                ]
+
+            )
+
+            self.cache["graph"][
+                NodeCategory.PROJECT.value
+            ][task_id] = {
+
+                "id": project_node.id,
+
+                "title": project_node.title,
+
+                "payload": project_node.payload,
+
+                "tags": project_node.tags,
+
+                "created_at": project_node.created_at
+
+            }
+
+            # --------------------------------------
+            # Learn Architecture
+            # --------------------------------------
+
+            architecture = project.get(
+                "architecture",
+                {}
+            )
+
+            framework = architecture.get(
+                "framework"
+            )
+
+            if framework:
+
+                self.cache["graph"][
+                    NodeCategory.ARCHITECTURE.value
+                ][framework] = architecture
+
+            # --------------------------------------
+            # Learn Deployment
+            # --------------------------------------
+
+            deployment = project.get(
+                "deployment",
+                {}
+            )
+
+            if deployment:
+
+                self.cache["graph"][
+                    NodeCategory.DEPLOYMENT.value
+                ][task_id] = deployment
+
+            # --------------------------------------
+            # Learn Review
+            # --------------------------------------
+
+            review = project.get(
+                "review",
+                {}
+            )
+
+            self.cache["graph"][
+                NodeCategory.REVIEW.value
+            ][task_id] = review
+
+            # --------------------------------------
+            # Learn Tests
+            # --------------------------------------
+
+            tests = project.get(
+                "tests",
+                {}
+            )
+
+            self.cache["graph"][
+                NodeCategory.TEST.value
+            ][task_id] = tests
+
+            await self._atomic_save()
+
+            logger.info(
+                f"Learned project {task_id}"
+            )
+
+    # ==========================================================
+    # SUCCESS / FAILURE LEARNING ENGINE
+    # ==========================================================
+
+    async def learn_outcome(
+        self,
+        task_id: str
+    ):
+        """
+        Learns whether a project succeeded or failed and
+        stores reusable experience.
+        """
+
+        project = self.cache["graph"][
+            NodeCategory.PROJECT.value
+        ].get(task_id)
+
+        if project is None:
+            return
+
+        payload = project["payload"]
+
+        review = payload.get("review", {})
+        tests = payload.get("tests", {})
+
+        approved = review.get("approved", False)
+        passed = tests.get("passed", False)
+
+        lesson = {
+            "task": task_id,
+            "goal": payload.get("goal"),
+            "timestamp": datetime.now(
+                timezone.utc
+            ).isoformat()
+        }
+
+        if approved and passed:
+
+            lesson["type"] = LessonType.SUCCESS.value
+
+            lesson["framework"] = payload.get(
+                "architecture",
+                {}
+            ).get(
+                "framework"
+            )
+
+            lesson["coverage"] = tests.get(
+                "coverage",
+                0
+            )
+
+            lesson["quality_score"] = review.get(
+                "quality_score",
+                0
+            )
+
+            self.cache["graph"][
+                NodeCategory.SUCCESS.value
+            ][task_id] = lesson
+
+        else:
+
+            lesson["type"] = LessonType.FAILURE.value
+
+            lesson["issues"] = review.get(
+                "issues",
+                []
+            )
+
+            lesson["execution_log"] = tests.get(
+                "execution_log",
+                ""
+            )
+
+            self.cache["graph"][
+                NodeCategory.FAILURE.value
+            ][task_id] = lesson
+
+        await self._atomic_save()
+
+    # ==========================================================
+    # TEMPLATE EXTRACTION ENGINE
+    # ==========================================================
+
+    async def extract_template(
+        self,
+        task_id: str
+    ):
+        """
+        Creates reusable templates from successful projects.
+        """
+
+        success = self.cache["graph"][
+            NodeCategory.SUCCESS.value
+        ].get(task_id)
+
+        if success is None:
+            return
+
+        project = self.cache["graph"][
+            NodeCategory.PROJECT.value
+        ][task_id]["payload"]
+
+        template_id = str(uuid.uuid4())
+
+        template = {
+
+            "id": template_id,
+
+            "source_task": task_id,
+
+            "goal": project.get("goal"),
+
+            "architecture": project.get(
+                "architecture"
+            ),
+
+            "review": project.get(
+                "review"
+            ),
+
+            "tests": project.get(
+                "tests"
+            ),
+
+            "generated_at": datetime.now(
+                timezone.utc
+            ).isoformat()
+
+        }
+
+        self.cache["graph"][
+            NodeCategory.TEMPLATE.value
+        ][template_id] = template
+
+        await self._atomic_save()
+
+        logger.info(
+            f"Template created from {task_id}"
+        )
+
+    # ==========================================================
+    # SEMANTIC SEARCH ENGINE
+    # ==========================================================
+
+    async def search(
+        self,
+        keyword: str,
+        category: Optional[NodeCategory] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search the knowledge graph using keywords.
+        """
+
+        keyword = keyword.lower()
+
+        results = []
+
+        async with self._lock:
+
+            if category:
+
+                buckets = {
+                    category.value:
+                    self.cache["graph"].get(category.value, {})
+                }
+
+            else:
+
+                buckets = self.cache["graph"]
+
+            for bucket_name, bucket in buckets.items():
+
+                for node_id, node in bucket.items():
+
+                    text = json.dumps(node).lower()
+
+                    if keyword in text:
+
+                        results.append({
+
+                            "category": bucket_name,
+
+                            "id": node_id,
+
+                            "score": text.count(keyword),
+
+                            "node": node
+
+                        })
+
+        results.sort(
+            key=lambda x: x["score"],
+            reverse=True
+        )
+
+        return results
+
+    # ==========================================================
+    # SIMILAR PROJECT ENGINE
+    # ==========================================================
+
+    async def find_similar_projects(
+        self,
+        framework: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Finds projects using the same framework.
+        """
+
+        framework = framework.lower()
+
+        matches = []
+
+        projects = self.cache["graph"][
+            NodeCategory.PROJECT.value
+        ]
+
+        async with self._lock:
+
+            for task_id, node in projects.items():
+
+                payload = node["payload"]
+
+                architecture = payload.get(
+                    "architecture",
+                    {}
+                )
+
+                if architecture.get(
+                    "framework",
+                    ""
+                ).lower() == framework:
+
+                    matches.append({
+
+                        "task_id": task_id,
+
+                        "goal": payload.get("goal"),
+
+                        "status": payload.get("status"),
+
+                        "review_score": payload.get(
+                            "review",
+                            {}
+                        ).get(
+                            "quality_score",
+                            0
+                        ),
+
+                        "coverage": payload.get(
+                            "tests",
+                            {}
+                        ).get(
+                            "coverage",
+                            0
+                        )
+
+                    })
+
+        matches.sort(
+
+            key=lambda x: (
+                x["review_score"],
+                x["coverage"]
+            ),
+
+            reverse=True
+
+        )
+
+        return matches
+
+    # ==========================================================
+    # TEMPLATE RETRIEVAL
+    # ==========================================================
+
+    async def get_templates(
+        self
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns all reusable templates.
+        """
+
+        async with self._lock:
+
+            return list(
+
+                self.cache["graph"][
+                    NodeCategory.TEMPLATE.value
+                ].values()
+
+            )
+
+    # ==========================================================
+    # KNOWLEDGE GRAPH SUMMARY
+    # ==========================================================
+
+    async def graph_summary(self) -> Dict[str, int]:
+        """
+        Returns graph statistics.
+        """
+
+        async with self._lock:
+
+            summary = {}
+
+            for category in NodeCategory:
+
+                summary[category.value] = len(
+
+                    self.cache["graph"].get(
+                        category.value,
+                        {}
+                    )
+
+                )
+
+            return summary
+
+    # ==========================================================
+    # AI RECOMMENDATION ENGINE
+    # ==========================================================
+
+    async def recommend_for_project(
+        self,
+        goal: str,
+        framework: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generates intelligent recommendations from everything
+        Memory AI has learned.
+        """
+
+        recommendation = {
+            "goal": goal,
+            "recommended_framework": None,
+            "recommended_templates": [],
+            "best_practices": [],
+            "similar_projects": [],
+            "estimated_success_score": 0.0
+        }
+
+        async with self._lock:
+
+            # --------------------------------------------------
+            # Similar Successful Projects
+            # --------------------------------------------------
+
+            success_nodes = self.cache["graph"][
+                NodeCategory.SUCCESS.value
+            ]
+
+            for task_id in success_nodes:
+
+                project = self.cache["graph"][
+                    NodeCategory.PROJECT.value
+                ].get(task_id)
+
+                if not project:
+                    continue
+
+                payload = project["payload"]
+
+                if goal.lower() in payload.get(
+                    "goal",
+                    ""
+                ).lower():
+
+                    recommendation[
+                        "similar_projects"
+                    ].append({
+
+                        "task_id": task_id,
+
+                        "goal": payload.get("goal"),
+
+                        "framework": payload.get(
+                            "architecture",
+                            {}
+                        ).get(
+                            "framework"
+                        ),
+
+                        "review_score": payload.get(
+                            "review",
+                            {}
+                        ).get(
+                            "quality_score",
+                            0
+                        ),
+
+                        "coverage": payload.get(
+                            "tests",
+                            {}
+                        ).get(
+                            "coverage",
+                            0
+                        )
+
+                    })
+
+            # --------------------------------------------------
+            # Framework Recommendation
+            # --------------------------------------------------
+
+            if framework:
+
+                recommendation[
+                    "recommended_framework"
+                ] = framework
+
+            elif recommendation["similar_projects"]:
+
+                recommendation[
+                    "recommended_framework"
+                ] = recommendation[
+                    "similar_projects"
+                ][0]["framework"]
+
+            # --------------------------------------------------
+            # Template Recommendation
+            # --------------------------------------------------
+
+            templates = self.cache["graph"][
+                NodeCategory.TEMPLATE.value
+            ]
+
+            for template in templates.values():
+
+                if goal.lower() in template.get(
+                    "goal",
+                    ""
+                ).lower():
+
+                    recommendation[
+                        "recommended_templates"
+                    ].append(template["id"])
+
+            # --------------------------------------------------
+            # Best Practices
+            # --------------------------------------------------
+
+            recommendation["best_practices"] = [
+
+                "Run Reviewer AI before deployment.",
+
+                "Maintain minimum 90% test coverage.",
+
+                "Reuse successful architecture patterns.",
+
+                "Always generate deployment manifest.",
+
+                "Archive every completed project.",
+
+                "Create reusable templates.",
+
+                "Record lessons from failures."
+
+            ]
+
+            # --------------------------------------------------
+            # Estimated Success Score
+            # --------------------------------------------------
+
+            count = len(
+                recommendation["similar_projects"]
+            )
+
+            if count == 0:
+
+                recommendation[
+                    "estimated_success_score"
+                ] = 60.0
+
+            elif count < 5:
+
+                recommendation[
+                    "estimated_success_score"
+                ] = 80.0
+
+            else:
+
+                recommendation[
+                    "estimated_success_score"
+                ] = 95.0
+
+        return recommendation
+
+    # ==========================================================
+    # MEMORY ANALYTICS ENGINE
+    # ==========================================================
+
+    async def analytics(self) -> Dict[str, Any]:
+        """
+        Computes enterprise-wide analytics for the entire
+        Nexus Software Factory.
+        """
+
+        async with self._lock:
+
+            projects = self.cache["graph"][
+                NodeCategory.PROJECT.value
+            ]
+
+            total_projects = len(projects)
+
+            deployed = 0
+            failed = 0
+
+            framework_usage: Dict[str, int] = {}
+
+            average_review = 0.0
+            average_coverage = 0.0
+
+            best_project = None
+            highest_score = -1
+
+            for task_id, node in projects.items():
+
+                payload = node["payload"]
+
+                # -----------------------------
+                # Deployment statistics
+                # -----------------------------
+
+                if payload.get("deployment_complete"):
+                    deployed += 1
+
+                if payload.get("status") == "FAILED":
+                    failed += 1
+
+                # -----------------------------
+                # Framework usage
+                # -----------------------------
+
+                framework = payload.get(
+                    "architecture",
+                    {}
+                ).get(
+                    "framework",
+                    "Unknown"
+                )
+
+                framework_usage.setdefault(
+                    framework,
+                    0
+                )
+
+                framework_usage[framework] += 1
+
+                # -----------------------------
+                # Review score
+                # -----------------------------
+
+                review_score = payload.get(
+                    "review",
+                    {}
+                ).get(
+                    "quality_score",
+                    0
+                )
+
+                average_review += review_score
+
+                # -----------------------------
+                # Coverage
+                # -----------------------------
+
+                coverage = payload.get(
+                    "tests",
+                    {}
+                ).get(
+                    "coverage",
+                    0
+                )
+
+                average_coverage += coverage
+
+                # -----------------------------
+                # Best project
+                # -----------------------------
+
+                score = review_score + coverage
+
+                if score > highest_score:
+
+                    highest_score = score
+
+                    best_project = {
+
+                        "task_id": task_id,
+
+                        "goal": payload.get("goal"),
+
+                        "framework": framework,
+
+                        "review_score": review_score,
+
+                        "coverage": coverage
+
+                    }
+
+            # ---------------------------------------
+            # Normalize values
+            # ---------------------------------------
+
+            if total_projects:
+
+                average_review /= total_projects
+                average_coverage /= total_projects
+
+            deployment_rate = (
+                deployed / total_projects * 100
+                if total_projects else 0
+            )
+
+            failure_rate = (
+                failed / total_projects * 100
+                if total_projects else 0
+            )
+
+            return {
+
+                "total_projects": total_projects,
+
+                "deployment_rate": round(
+                    deployment_rate,
+                    2
+                ),
+
+                "failure_rate": round(
+                    failure_rate,
+                    2
+                ),
+
+                "average_review_score": round(
+                    average_review,
+                    2
+                ),
+
+                "average_test_coverage": round(
+                    average_coverage,
+                    2
+                ),
+
+                "framework_usage": framework_usage,
+
+                "best_project": best_project
+
+            }
+
+    # ==========================================================
+    # TOP PROJECTS
+    # ==========================================================
+
+    async def top_projects(
+        self,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns the highest-performing projects.
+        """
+
+        ranking = []
+
+        async with self._lock:
+
+            for task_id, node in self.cache["graph"][
+                NodeCategory.PROJECT.value
+            ].items():
+
+                payload = node["payload"]
+
+                review = payload.get(
+                    "review",
+                    {}
+                ).get(
+                    "quality_score",
+                    0
+                )
+
+                coverage = payload.get(
+                    "tests",
+                    {}
+                ).get(
+                    "coverage",
+                    0
+                )
+
+                ranking.append({
+
+                    "task_id": task_id,
+
+                    "goal": payload.get("goal"),
+
+                    "framework": payload.get(
+                        "architecture",
+                        {}
+                    ).get("framework"),
+
+                    "score": review + coverage,
+
+                    "review": review,
+
+                    "coverage": coverage
+
+                })
+
+        ranking.sort(
+            key=lambda x: x["score"],
+            reverse=True
+        )
+
+        return ranking[:limit]
+
+    async def _persist_state_to_disk(self) -> None:
+        """
+        Safe transactional write.
+
+        Stage 1:
+            Write temporary file.
+
+        Stage 2:
+            Backup previous database.
+
+        Stage 3:
+            Atomic replace.
+        """
+
+        tmp_file = self.db_path.with_suffix(".tmp")
+
+        self._state_cache["manifest"]["last_sync"] = (
+            datetime.now(timezone.utc).isoformat()
+        )
+
+        try:
+            loop = asyncio.get_running_loop()
+
+            await loop.run_in_executor(
+                None,
+                self._write_json_worker,
+                tmp_file,
+                self._state_cache
+            )
+
+            if self.db_path.exists():
+
+                backup_name = (
+                    f"snapshot_{int(datetime.now().timestamp())}.bak"
+                )
+
+                backup_target = self.backup_dir / backup_name
+
+                await loop.run_in_executor(
+                    None,
+                    shutil.copy2,
+                    self.db_path,
+                    backup_target
+                )
+
+            os.replace(tmp_file, self.db_path)
+
+            logger.info("💾 Memory database committed successfully.")
+
+        except Exception as exc:
+
+            logger.critical(
+                "Database transaction failed: %s",
+                exc
+            )
+
+            if tmp_file.exists():
+                tmp_file.unlink()
+
+            with open(
+                self.db_path,
+                "r",
+                encoding="utf-8"
+            ) as restore:
+
+                self._state_cache = json.load(restore)
+
+            raise IOError(
+                "Memory rollback completed successfully."
+            ) from exc
+
+    # ==========================================================
+    # JSON WRITE WORKER
+    # ==========================================================
+
+    @staticmethod
+    def _write_json_worker(
+        path: Path,
+        data: Dict[str, Any]
+    ) -> None:
+        """
+        Low-level JSON serialization worker.
+        """
+
+        with open(
+            path,
+            "w",
+            encoding="utf-8"
+        ) as outfile:
+
+            json.dump(
+                data,
+                outfile,
+                indent=4,
+                ensure_ascii=False
+            )
+
+    # ==========================================================
+    # BACKUP MAINTENANCE
+    # ==========================================================
+
+    def _cleanup_backups(self) -> None:
+        """
+        Keeps only the newest MAX_BACKUPS backups.
+        """
+
+        backups = sorted(
+
+            self.backup_dir.glob("*.bak"),
+
+            key=lambda p: p.stat().st_mtime,
+
+            reverse=True
+
+        )
+
+        for old in backups[MAX_BACKUPS:]:
+
+            try:
+
+                old.unlink()
+
+                logger.info(
+                    f"Deleted old backup: {old.name}"
+                )
 
             except Exception as exc:
 
-                logger.error(
-                    f"Snapshot creation failed: {exc}"
-                )
+                logger.warning(exc)
 
+    # ==========================================================
+    # BACKGROUND MAINTENANCE
+    # ==========================================================
 
-    # ---------------------------------------------------------
-    # MAINTENANCE LOOP
-    # ---------------------------------------------------------
-
-    async def _maintenance_loop(self):
+    async def _background_compaction_worker(self):
+        """
+        Daily optimization cycle.
+        """
 
         while True:
 
@@ -1198,124 +1553,111 @@ class MemoryAI:
 
                 await asyncio.sleep(86400)
 
-                self._cleanup_old_backups()
+                self._cleanup_backups()
 
-                self._optimize_indexes()
+                self.statistics()
 
                 logger.info(
-                    "Daily maintenance completed."
+                    "Memory maintenance cycle complete."
                 )
+
+            except asyncio.CancelledError:
+
+                logger.info(
+                    "Maintenance worker stopped."
+                )
+
+                break
 
             except Exception as exc:
 
-                logger.error(
-                    f"Maintenance failed: {exc}"
-                )
+                logger.exception(exc)
 
-
-    # ---------------------------------------------------------
-    # INDEX OPTIMIZATION
-    # ---------------------------------------------------------
-
-    def _optimize_indexes(self):
-
-        self._rebuild_indexes()
-
-        logger.info(
-            "Indexes optimized."
-        )
-
-
-    # ---------------------------------------------------------
-    # DATABASE EXPORT
-    # ---------------------------------------------------------
+    # ==========================================================
+    # MEMORY EXPORT
+    # ==========================================================
 
     async def export_database(
         self,
         destination: str
-    ):
+    ) -> None:
+        """
+        Export complete knowledge database.
+        """
 
-        destination = Path(destination)
+        async with self._lock:
 
-        shutil.copy2(
-            self.database,
-            destination
-        )
+            shutil.copy2(
+                self.db_path,
+                destination
+            )
 
-        logger.info(
-            f"Database exported -> {destination}"
-        )
+            logger.info(
+                f"Database exported -> {destination}"
+            )
 
-
-    # ---------------------------------------------------------
-    # DATABASE IMPORT
-    # ---------------------------------------------------------
+    # ==========================================================
+    # MEMORY IMPORT
+    # ==========================================================
 
     async def import_database(
         self,
         source: str
-    ):
+    ) -> None:
+        """
+        Import an external database.
+        """
 
-        source = Path(source)
+        async with self._lock:
 
-        if not source.exists():
+            shutil.copy2(
+                source,
+                self.db_path
+            )
 
-            raise FileNotFoundError(source)
+            with open(
+                self.db_path,
+                "r",
+                encoding="utf-8"
+            ) as infile:
 
-        shutil.copy2(
-            source,
-            self.database
-        )
+                self._state_cache = json.load(
+                    infile
+                )
 
-        self._load_database()
+            logger.info(
+                "External knowledge base imported."
+            )
 
-        self._rebuild_indexes()
+    # ==========================================================
+    # ENGINE INFORMATION
+    # ==========================================================
 
-        logger.info(
-            "Database imported successfully."
-        )
+    def engine_info(self) -> Dict[str, Any]:
+        """
+        Returns engine metadata.
+        """
 
+        return {
 
-    # ---------------------------------------------------------
-    # RESET CACHE
-    # ---------------------------------------------------------
+            "engine": ENGINE_NAME,
 
-    async def clear_cache(self):
+            "version": ENGINE_VERSION,
 
-        self._cache.clear()
+            "database": str(self.db_path),
 
-        self.indexes = {
-            "tags": {},
-            "categories": {},
-            "titles": {}
+            "backups": str(self.backup_dir),
+
+            "cache_version": CACHE_VERSION,
+
+            "categories": [
+
+                category.value
+
+                for category in NodeCategory
+
+            ]
+
         }
 
-        self._load_database()
 
-        self._rebuild_indexes()
-
-        logger.info(
-            "Memory cache refreshed."
-        )
-
-
-    # ---------------------------------------------------------
-    # SHUTDOWN
-    # ---------------------------------------------------------
-
-    async def shutdown(self):
-
-        logger.info(
-            "Saving final checkpoint..."
-        )
-
-        await self._atomic_commit()
-
-        logger.info(
-            "Enterprise Memory Engine Offline."
-        )
-
-
-# ==========================================================
-# END OF ENTERPRISE MEMORY AI v4.0
-# ==========================================================
