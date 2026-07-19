@@ -1,0 +1,21 @@
+{
+    "manifest": {
+        "engine": "NEXUS MEMORY ENGINE",
+        "version": "6.0.0",
+        "created": "2026-07-19T15:55:26.458220+00:00",
+        "last_sync": null,
+        "cache_version": 2
+    },
+    "graph": {
+        "projects": {},
+        "architectures": {},
+        "lessons": {},
+        "templates": {},
+        "failures": {},
+        "successes": {},
+        "security": {},
+        "tests": {},
+        "reviews": {},
+        "deployments": {}
+    }
+}

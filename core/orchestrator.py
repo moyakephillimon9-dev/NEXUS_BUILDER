@@ -9,9 +9,10 @@ Full sequential delivery pipeline:
 
   Planner AI → Architect AI → Coder AI → Reviewer AI →
   Tester AI → Security AI → Performance AI → DevOps AI →
-  Deployment AI
+  Deployment AI → Memory AI
 """
 
+import asyncio
 import os
 
 from core.shared_memory import SharedMemory
@@ -26,6 +27,7 @@ from plugins.security_ai.agent    import SecurityAI
 from plugins.performance_ai.agent import PerformanceAI
 from plugins.devops_ai.agent      import DevOpsAI
 from plugins.deployment_ai.agent  import DeploymentAI
+from plugins.memory_ai.agent      import MemoryAI
 
 
 class Orchestrator:
@@ -63,6 +65,7 @@ class Orchestrator:
         self.performance = PerformanceAI(self.shared_memory)
         self.devops      = DevOpsAI(self.shared_memory)
         self.deployer    = DeploymentAI(self.shared_memory)
+        self.memory      = MemoryAI(self.shared_memory)
 
         print("\n[BOOT] All AI Modules Loaded")
 
@@ -77,6 +80,7 @@ class Orchestrator:
         self.performance.start()
         self.devops.start()
         self.deployer.start()
+        print("[Memory AI] Semantic Knowledge Engine Ready.")
 
         # ── Register employees ─────────────────────────────────────── #
         self.manager.register_employee("PLANNER-001",     self.planner)
@@ -88,6 +92,7 @@ class Orchestrator:
         self.manager.register_employee("PERFORMANCE-001", self.performance)
         self.manager.register_employee("DEVOPS-001",      self.devops)
         self.manager.register_employee("DEPLOY-001",      self.deployer)
+        self.manager.register_employee("MEMORY-001",      self.memory)
 
         print("\n[WORKFORCE STATUS]")
         self.manager.list_employees()
@@ -324,6 +329,12 @@ class Orchestrator:
             full = os.path.join(deploy_path, artifact)
             mark = "✓" if os.path.exists(full) else "✗"
             print(f"  {mark} {artifact}")
+
+        # ── STAGE 9 : Memory AI ───────────────────────────────────── #
+
+        self._section(9, "Knowledge Graph Update")
+        self.manager.dispatch_swarm_worker(task_id, "MEMORY-001")
+        project = self._read(task_id)
 
         # ── Final Summary ─────────────────────────────────────────── #
 

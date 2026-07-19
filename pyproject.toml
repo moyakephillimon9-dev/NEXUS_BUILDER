@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "nexus-builder"
+version = "1.0.0"
+description = "NEXUS Builder — Private AI Software Engineering Company"
+readme = "README.md"
+license = { text = "Proprietary" }
+authors = [
+    { name = "Moyake Phillimon" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+performance = [
+    "uvloop>=0.19.0",
+]
+
+[project.scripts]
+nexus = "nexus:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "plugins*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json", "*.md", "*.txt"]

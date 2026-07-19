@@ -1660,4 +1660,133 @@ class MemoryAI:
 
         }
 
+    # ==========================================================
+    # SYNCHRONOUS PIPELINE ENTRY POINT
+    # ==========================================================
+
+    def _sync_save(self):
+        """
+        Synchronous atomic save — safe to call outside an event loop.
+        Used by process_project_task so the pipeline never needs asyncio.
+        """
+        temp = self.database_path.with_suffix(".tmp")
+        self.cache["manifest"]["last_sync"] = (
+            datetime.now(timezone.utc).isoformat()
+        )
+        self._write_json(temp, self.cache)
+        if self.database_path.exists():
+            self._create_backup()
+        os.replace(temp, self.database_path)
+
+    def process_project_task(self, task_id: str):
+        """
+        Synchronous entry point called by ManagerAI.dispatch_swarm_worker().
+
+        Learns from the completed project — stores it in the knowledge
+        graph, records the outcome as a success or failure lesson, and
+        extracts a reusable template from successful builds.
+        """
+
+        key     = f"active_project_{task_id}"
+        project = self.memory.read(key)
+
+        if project is None:
+            print("[Memory AI] Project not found.")
+            return
+
+        print(f"[Memory AI] Learning from project: {task_id}")
+
+        graph = self.cache["graph"]
+
+        # ── Store project node ─────────────────────────────────── #
+
+        graph[NodeCategory.PROJECT.value][task_id] = {
+            "id":         task_id,
+            "title":      project.get("goal", "Unknown"),
+            "payload":    project,
+            "tags": [
+                project.get("architecture", {}).get("framework", "Unknown"),
+                project.get("status", "UNKNOWN"),
+            ],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        # ── Architecture ───────────────────────────────────────── #
+
+        architecture = project.get("architecture") or {}
+        framework    = architecture.get("framework")
+        if framework:
+            graph[NodeCategory.ARCHITECTURE.value][framework] = architecture
+
+        # ── Deployment ─────────────────────────────────────────── #
+
+        deployment = project.get("deployment") or {}
+        if deployment:
+            graph[NodeCategory.DEPLOYMENT.value][task_id] = deployment
+
+        # ── Review + Tests ─────────────────────────────────────── #
+
+        review = project.get("review") or {}
+        tests  = project.get("tests")  or {}
+
+        graph[NodeCategory.REVIEW.value][task_id] = review
+        graph[NodeCategory.TEST.value][task_id]   = tests
+
+        # ── Outcome lesson ─────────────────────────────────────── #
+
+        approved = review.get("approved", False)
+        passed   = tests.get("passed",   False)
+
+        lesson = {
+            "task":      task_id,
+            "goal":      project.get("goal"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        if approved and passed:
+            lesson["type"]          = LessonType.SUCCESS.value
+            lesson["framework"]     = framework
+            lesson["coverage"]      = tests.get("coverage", 0)
+            lesson["quality_score"] = review.get("quality_score", 0)
+            graph[NodeCategory.SUCCESS.value][task_id] = lesson
+
+            # Template from successful project
+            template_id = str(uuid.uuid4())
+            graph[NodeCategory.TEMPLATE.value][template_id] = {
+                "id":           template_id,
+                "source_task":  task_id,
+                "goal":         project.get("goal"),
+                "architecture": architecture,
+                "review":       review,
+                "tests":        tests,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            print(f"[Memory AI] Success lesson recorded. Template extracted.")
+
+        else:
+            lesson["type"]          = LessonType.FAILURE.value
+            lesson["issues"]        = review.get("issues", [])
+            lesson["execution_log"] = tests.get("execution_log", "")
+            graph[NodeCategory.FAILURE.value][task_id] = lesson
+            print(f"[Memory AI] Failure lesson recorded.")
+
+        # ── Update project status ─────────────────────────────────── #
+
+        project["status"] = "COMPLETED"
+        self.memory.write(key, project)
+
+        # ── Persist ────────────────────────────────────────────── #
+
+        self._sync_save()
+
+        total_projects  = len(graph[NodeCategory.PROJECT.value])
+        total_successes = len(graph[NodeCategory.SUCCESS.value])
+        total_failures  = len(graph[NodeCategory.FAILURE.value])
+        total_templates = len(graph[NodeCategory.TEMPLATE.value])
+
+        print(f"[Memory AI] Projects   : {total_projects}")
+        print(f"[Memory AI] Successes  : {total_successes}")
+        print(f"[Memory AI] Failures   : {total_failures}")
+        print(f"[Memory AI] Templates  : {total_templates}")
+        print(f"[Memory AI] Database   : {self.database_path}")
 
