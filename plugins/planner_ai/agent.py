@@ -70,11 +70,38 @@ class PlannerAI:
 
             {
                 "phase": 6,
+                "name": "Security Analysis",
+                "owner": "Security AI",
+                "priority": "HIGH",
+                "estimated_hours": 2,
+                "depends_on": [5]
+            },
+
+            {
+                "phase": 7,
+                "name": "Performance Profiling",
+                "owner": "Performance AI",
+                "priority": "HIGH",
+                "estimated_hours": 1,
+                "depends_on": [6]
+            },
+
+            {
+                "phase": 8,
+                "name": "DevOps & Infrastructure",
+                "owner": "DevOps AI",
+                "priority": "HIGH",
+                "estimated_hours": 2,
+                "depends_on": [7]
+            },
+
+            {
+                "phase": 9,
                 "name": "Deployment",
                 "owner": "Deployment AI",
                 "priority": "HIGH",
                 "estimated_hours": 1,
-                "depends_on": [5]
+                "depends_on": [8]
             }
         ]
 
