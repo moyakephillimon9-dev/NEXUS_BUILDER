@@ -1,0 +1,2 @@
+- [Pipeline architecture](pipeline-architecture.md) — 16-stage pipeline; worker IDs, stage order, and asyncio deadlock fix for MemoryAI
+- [Deployment AI requirements fix](deployment-ai-requirements.md) — requirements.txt must use code.get("requirements", []) not hardcoded deps
