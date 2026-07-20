@@ -1,2 +1,3 @@
-- [Pipeline architecture](pipeline-architecture.md) — 16-stage pipeline; worker IDs, stage order, and asyncio deadlock fix for MemoryAI
+- [Pipeline architecture](pipeline-architecture.md) — 21-stage pipeline; all 22 worker IDs, stage order, asyncio deadlock fix for MemoryAI
 - [Deployment AI requirements fix](deployment-ai-requirements.md) — requirements.txt must use code.get("requirements", []) not hardcoded deps
+- [Vision document bugs](vision-document-bugs.md) — two bugs when goal is a large vision doc; both fixed
