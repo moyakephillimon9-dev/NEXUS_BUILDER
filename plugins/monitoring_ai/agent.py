@@ -296,7 +296,7 @@ def _key(name: str, tags: dict | None) -> str:
     if not tags:
         return name
     tag_str = ",".join(f"{{k}}={{v}}" for k, v in sorted(tags.items()))
-    return f"{{name}}{{{{{tag_str}}}}}"
+    return name + "{{" + tag_str + "}}"
 
 
 if __name__ == "__main__":

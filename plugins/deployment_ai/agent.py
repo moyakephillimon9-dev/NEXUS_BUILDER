@@ -51,13 +51,19 @@ class DeploymentAI:
     def _checksum(self, text: str):
         return hashlib.sha256(text.encode()).hexdigest()
 
-    def _sanitize_name(self, text: str):
-        return (
-            text.lower()
+    def _sanitize_name(self, text: str, max_len: int = 50) -> str:
+        # Use only the first line — vision documents can be thousands of chars
+        first_line = text.strip().splitlines()[0] if text.strip() else "project"
+        slug = (
+            first_line.lower()
             .replace(" ", "_")
             .replace("-", "_")
             .replace("/", "_")
         )
+        # Strip non-alphanumeric/underscore chars and enforce max length
+        import re as _re
+        slug = _re.sub(r"[^\w]", "", slug)
+        return slug[:max_len] if slug else "project"
 
     ##############################################################
     # RELEASE GATE

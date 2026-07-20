@@ -13,9 +13,14 @@ Interactive mode (default):
 One-shot scripting:
     python nexus.py --goal "Build a REST API"
 
+Vision document mode:
+    python nexus.py --vision path/to/vision.txt
+    python nexus.py --vision -   (read from stdin)
+
 After pip install -e .:
     nexus
     nexus --goal "Build a REST API"
+    nexus --vision vision.txt
     nexus --version
     nexus --workers
     nexus --history
@@ -58,117 +63,48 @@ Owner : {owner}
 
 def print_banner():
     print(BANNER.format(
-        version=__version__,
+        version=Config.VERSION,
         owner=Config.OWNER,
-        line="=" * 50
+        line="=" * 50,
     ))
-
-
-# ------------------------------------------------------------------ #
-# Menu                                                                 #
-# ------------------------------------------------------------------ #
-
-MENU = """
-  [1]  Build a new project
-  [2]  View project history
-  [3]  List all workers
-  [4]  About NEXUS
-  [0]  Exit
-
-"""
-
-
-def show_menu() -> str:
-    print(MENU)
-    return input("  Select option : ").strip()
 
 
 # ------------------------------------------------------------------ #
 # Actions                                                              #
 # ------------------------------------------------------------------ #
 
-def action_build(goal: str | None = None):
-    """Run the full enterprise delivery pipeline."""
-    from core.orchestrator import Orchestrator
-
-    if not goal:
-        print()
-        print("  " + "=" * 60)
-        print("  PROJECT INTAKE")
-        print("  " + "=" * 60)
-
-        while not goal or not goal.strip():
-            goal = input("  Enter project goal : ").strip()
-            if not goal:
-                print("  [!] Goal cannot be empty.")
-
-    orchestrator = Orchestrator()
-    orchestrator.run(goal=goal)
-
-
-def action_history():
-    """List all completed projects from the vault."""
-    vault = "projects"
-
-    if not os.path.isdir(vault):
-        print("\n  No projects found yet.")
-        return
-
-    archives = sorted(
-        [f for f in os.listdir(vault) if f.endswith(".json")],
-        reverse=True
-    )
-
-    if not archives:
-        print("\n  No completed projects found.")
-        return
-
-    print(f"\n  {'Task ID':<20} {'Status':<20} {'Goal'}")
-    print("  " + "-" * 72)
-
-    for filename in archives:
-        path = os.path.join(vault, filename)
-        try:
-            with open(path) as f:
-                data = json.load(f)
-            task_id = data.get("task_id", filename.replace(".json", ""))
-            status  = data.get("status", "UNKNOWN")[:18]
-            goal    = data.get("goal", "")[:40]
-            print(f"  {task_id:<20} {status:<20} {goal}")
-        except Exception:
-            print(f"  {filename}  [unreadable]")
-
-    print()
-
-
 def action_workers():
     """Show all registered AI workers."""
     workers = [
-        ("RESEARCH-001",    "Research AI",    "Permanent intelligence & knowledge base (Stage 0)"),
-        ("PLANNER-001",     "Planner AI",     "Builds a 16-phase execution manifest"),
-        ("ARCHITECT-001",   "Architect AI",   "Designs the system blueprint"),
-        ("DATABASE-001",    "Database AI",    "SQL schema & Python sqlite3 helper generation"),
-        ("CODER-001",       "Coder AI",       "13-template type-aware source code generation"),
-        ("DESIGN-001",      "Design AI",      "Colour palette, CSS, layout spec generation"),
-        ("REVIEWER-001",    "Reviewer AI",    "AST static analysis + quality gate"),
-        ("TESTER-001",      "Tester AI",      "Sandboxed runtime validation"),
-        ("SECURITY-001",    "Security AI",    "Vulnerability & secret scanning"),
-        ("PERFORMANCE-001", "Performance AI", "Benchmarks + cyclomatic complexity"),
-        ("DOCS-001",        "Documentation AI","README, API docs, ARCHITECTURE, CHANGELOG"),
-        ("MONITOR-001",     "Monitoring AI",  "Health checks, logger config, metrics, alerts"),
-        ("INTEGRATION-001", "Integration AI", "API client, webhook handler, config"),
-        ("DEVOPS-001",      "DevOps AI",      "Dockerfile, CI/CD, Makefile"),
-        ("DEPLOY-001",      "Deployment AI",  "Release packaging & artifact archive"),
-        ("MEMORY-001",      "Memory AI",      "Persistent knowledge graph & learning"),
+        # Stage  ID               Name                  Responsibility
+        (  0, "VISION-001",    "Vision Parser AI",    "Parses vision docs; extracts requirements, modules, technologies"),
+        (  1, "ASSESS-001",    "Capability Assessor", "Classifies features: Fully/Partially/Unsupported — never fakes"),
+        (  2, "RESEARCH-001",  "Research AI",         "Permanent knowledge base; pattern library; topic dedup"),
+        (  3, "MODULE-001",    "Module Detector AI",  "Detects modules, builds dependency graph, exec order"),
+        (  4, "PLANNER-001",   "Planner AI",          "19-phase plan with tasks, subtasks, effort, risk, calendar"),
+        (  5, "ARCHITECT-001", "Architect AI",        "9-layer architecture: module, API, DB, security, deploy..."),
+        (  6, "DATABASE-001",  "Database AI",         "SQL DDL schema + Python sqlite3 helper per project type"),
+        (  7, "CODER-001",     "Coder AI",            "13-template type-aware source code generation"),
+        (  8, "DESIGN-001",    "Design AI",           "Colour palette, production CSS, layout specification"),
+        (  9, "REVIEWER-001",  "Reviewer AI",         "AST static analysis + quality gate (score ≥ 70)"),
+        ( 10, "TESTER-001",    "Tester AI",           "Sandboxed runtime validation + coverage estimation"),
+        ( 11, "SECURITY-001",  "Security AI",         "Vulnerability & secret scanning; risk classification"),
+        ( 12, "PERFORMANCE-001","Performance AI",     "Benchmarks + cyclomatic complexity; grade A–F"),
+        ( 13, "DOCS-001",      "Documentation AI",    "README, API.md, ARCHITECTURE.md, CHANGELOG, CONTRIBUTING"),
+        ( 14, "MONITOR-001",   "Monitoring AI",       "Health checks, metrics, logger config, alerts.json"),
+        ( 15, "INTEGRATION-001","Integration AI",     "API client with retries, HMAC webhook handler, config"),
+        ( 16, "DEVOPS-001",    "DevOps AI",           "Dockerfile, GitHub Actions CI/CD, Makefile"),
+        ( 17, "DEPLOY-001",    "Deployment AI",       "Release archive, requirements.txt, deployment.json"),
+        ( 18, "VERIFY-001",    "Verification AI",     "Pre-release honesty check — blocks false success claims"),
+        ( 19, "PROGRESS-001",  "Progress Tracker AI", "Completion %, feature classification, limitations, recs"),
+        ( 20, "MEMORY-001",    "Memory AI",           "Persistent semantic knowledge graph + learning engine"),
     ]
 
-    print(f"\n  {'ID':<20} {'Worker':<20} {'Responsibility'}")
-    print("  " + "-" * 72)
-
-    for wid, name, desc in workers:
-        print(f"  {wid:<20} {name:<20} {desc}")
-
-    print()
+    print(f"\n  {'St':>3}  {'ID':<20} {'Worker':<22} {'Responsibility'}")
+    print("  " + "-" * 90)
+    for stage, wid, name, desc in workers:
+        print(f"  {stage:>3}  {wid:<20} {name:<22} {desc}")
+    print(f"\n  Total: {len(workers)} AI workers  |  Pipeline: 21 stages\n")
 
 
 def action_about():
@@ -179,128 +115,244 @@ def action_about():
 
   NEXUS is a private AI software engineering company.
 
-  It operates a team of specialised AI workers that plan, design,
-  code, review, test, secure, profile, package, deploy, and learn
-  from every software project — without human intervention.
+  It operates a team of 21 specialised AI workers that:
 
-  PIPELINE
-  --------
-  Stage 0  Planner AI       Execution manifest
-  Stage 1  Architect AI     System blueprint
-  Stage 2  Coder AI         Source code generation
-  Stage 3  Reviewer AI      Static analysis
-  Stage 4  Tester AI        Runtime validation
-  Stage 5  Security AI      Vulnerability scan
-  Stage 6  Performance AI   Benchmarks & profiling
-  Stage 7  DevOps AI        Infrastructure artefacts
-  Stage 8  Deployment AI    Release packaging
-  Stage 9  Memory AI        Knowledge graph update
+    ① Parse any vision document or goal into structured specifications
+    ② Honestly assess which features are buildable vs unsupported
+    ③ Detect required modules and build a dependency graph
+    ④ Plan phases, milestones, tasks, subtasks with effort estimates
+    ⑤ Design 9-layer system architecture with full reasoning
+    ⑥ Generate SQL schemas and Python database layers
+    ⑦ Generate type-aware source code (13 project templates)
+    ⑧ Design colour palettes and production CSS
+    ⑨ Review code quality with AST analysis
+    ⑩ Validate code in a sandboxed runtime
+    ⑪ Scan for security vulnerabilities
+    ⑫ Benchmark performance and complexity
+    ⑬ Write comprehensive documentation (5 files)
+    ⑭ Configure observability (health, metrics, alerts)
+    ⑮ Generate integration layer (API client, webhooks)
+    ⑯ Build DevOps pipeline (Docker, CI/CD, Makefile)
+    ⑰ Package releases with correct dependencies
+    ⑱ Verify honesty — never claims unsupported features are done
+    ⑲ Report progress with completion percentages per stage
+    ⑳ Preserve knowledge for continuous improvement
 
-  PRINCIPLES
-  ----------
-  • Founder first — you always have final authority
-  • Quality first — correctness over speed
-  • Security first — no exposed secrets or credentials
-  • Continuous learning — NEXUS improves with every project
-  • Stability — the kernel is never broken by new features
+  CORE PRINCIPLE: Honesty, verification, and transparency
+  take priority over claiming completion.
 
-  OUTPUT
-  ------
-  Every completed project produces a deployment folder containing:
-    main.py           Generated source code
-    requirements.txt  Runtime dependencies
-    README.md         Project documentation
-    deployment.json   Release manifest + checksum
-    Dockerfile        Container image definition
-    Makefile          install / run / test / clean targets
-    docker-compose.yml Local development environment
-    .github/workflows/ci.yml  GitHub Actions CI pipeline
-
+  Owner   : Moyake Phillimon
+  Version : {version}
   =====================================================================
-"""
+""".format(version=Config.VERSION)
     print(about)
 
 
+def action_history():
+    """Show completed projects from the projects directory."""
+    projects_dir = getattr(Config, "PROJECTS_DIR", "projects")
+    if not os.path.isdir(projects_dir):
+        print(f"\n  No project history found (folder '{projects_dir}' does not exist).\n")
+        return
+
+    files = sorted(
+        f for f in os.listdir(projects_dir) if f.endswith(".json")
+    )
+
+    if not files:
+        print(f"\n  No projects on record in '{projects_dir}'.\n")
+        return
+
+    print(f"\n  {'Task ID':<20} {'Goal':<45} {'Status':<25} {'Type'}")
+    print("  " + "-" * 105)
+
+    for filename in files[-20:]:          # show last 20
+        filepath = os.path.join(projects_dir, filename)
+        try:
+            with open(filepath) as fh:
+                data = json.load(fh)
+            tid    = data.get("task_id", filename)[:20]
+            goal   = data.get("goal", "N/A")[:44]
+            status = data.get("status", "N/A")[:24]
+            ptype  = data.get("research", {}).get("project_type", "N/A")
+            print(f"  {tid:<20} {goal:<45} {status:<25} {ptype}")
+        except Exception:
+            print(f"  {filename:<20} (could not read)")
+
+    print()
+
+
+def action_run(goal: str):
+    """Execute the full 21-stage pipeline for a goal."""
+    from core.orchestrator import Orchestrator
+    Orchestrator().run(goal=goal)
+
+
+def action_vision(source: str):
+    """
+    Parse a vision document and run the full pipeline.
+
+    Parameters
+    ----------
+    source : str
+        File path, or '-' to read from stdin.
+    """
+    if source == "-":
+        print("[NEXUS] Reading vision document from stdin...")
+        text = sys.stdin.read()
+    else:
+        if not os.path.isfile(source):
+            print(f"[NEXUS] Error: file not found — '{source}'")
+            sys.exit(1)
+        with open(source, encoding="utf-8") as fh:
+            text = fh.read()
+
+    if not text.strip():
+        print("[NEXUS] Error: vision document is empty.")
+        sys.exit(1)
+
+    print(f"[NEXUS] Vision document loaded: {len(text)} chars, {text.count(chr(10))} lines")
+    action_run(goal=text)
+
+
 # ------------------------------------------------------------------ #
-# CLI Entry Point                                                      #
+# Interactive menu                                                     #
 # ------------------------------------------------------------------ #
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        prog="nexus",
-        description="NEXUS Builder — Private AI Software Engineering Company",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "--version", "-v",
-        action="version",
-        version=f"NEXUS Builder {__version__}",
-    )
-    parser.add_argument(
-        "--goal", "-g",
-        metavar="GOAL",
-        help="Skip the menu and immediately build a project with this goal.",
-    )
-    parser.add_argument(
-        "--workers", "-w",
-        action="store_true",
-        help="List all registered AI workers and exit.",
-    )
-    parser.add_argument(
-        "--history",
-        action="store_true",
-        help="Show project history and exit.",
-    )
-    return parser.parse_args()
-
-
-def main():
-
-    args = parse_args()
-
-    # ── Non-interactive flags ──────────────────────────────────── #
-
-    if args.workers:
-        action_workers()
-        return
-
-    if args.history:
-        action_history()
-        return
-
-    if args.goal:
-        # Boot kernel silently then run pipeline
-        Kernel().boot()
-        action_build(goal=args.goal)
-        return
-
-    # ── Interactive mode ───────────────────────────────────────── #
-
+def interactive_menu():
+    """Full interactive CLI menu."""
     print_banner()
-    Kernel().boot()
 
     while True:
+        print("\n  MAIN MENU")
+        print("  " + "-" * 40)
+        print("  [1]  Run pipeline with a goal")
+        print("  [2]  Run pipeline from a vision document file")
+        print("  [3]  List all AI workers")
+        print("  [4]  View project history")
+        print("  [5]  About NEXUS Builder")
+        print("  [Q]  Quit")
+        print()
 
-        choice = show_menu()
+        choice = input("  > ").strip().upper()
 
         if choice == "1":
-            action_build()
+            goal = input("\n  Enter your goal: ").strip()
+            if goal:
+                action_run(goal)
+            else:
+                print("  No goal entered.")
 
         elif choice == "2":
-            action_history()
+            path = input("\n  Enter path to vision document (or - for stdin): ").strip()
+            if path:
+                action_vision(path)
+            else:
+                print("  No path entered.")
 
         elif choice == "3":
             action_workers()
 
         elif choice == "4":
+            action_history()
+
+        elif choice == "5":
             action_about()
 
-        elif choice == "0":
-            print("\n  Goodbye. NEXUS shutting down.\n")
-            sys.exit(0)
+        elif choice in ("Q", "QUIT", "EXIT"):
+            print("\n  NEXUS Builder shutting down. Goodbye.\n")
+            break
 
         else:
-            print("\n  [!] Invalid option. Please choose 0-4.\n")
+            print("  Unknown option. Please choose 1–5 or Q.")
+
+
+# ------------------------------------------------------------------ #
+# CLI argument parser                                                  #
+# ------------------------------------------------------------------ #
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="nexus",
+        description="NEXUS Builder — Private AI Software Engineering Company",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  nexus                                    # interactive menu
+  nexus --goal "Build a REST API"          # one-shot goal
+  nexus --vision master_vision.txt         # vision document file
+  nexus --vision -                         # vision document from stdin
+  nexus --workers                          # list all AI workers
+  nexus --history                          # show project history
+  nexus --version                          # show version
+        """,
+    )
+
+    parser.add_argument(
+        "--goal", "-g",
+        metavar="GOAL",
+        help="Project goal (runs the full 21-stage pipeline).",
+    )
+
+    parser.add_argument(
+        "--vision", "-V",
+        metavar="FILE",
+        help="Path to a vision document file (or '-' for stdin).",
+    )
+
+    parser.add_argument(
+        "--workers", "-w",
+        action="store_true",
+        help="List all registered AI workers and exit.",
+    )
+
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        help="Show completed project history and exit.",
+    )
+
+    parser.add_argument(
+        "--version", "-v",
+        action="store_true",
+        help="Print version and exit.",
+    )
+
+    return parser
+
+
+# ------------------------------------------------------------------ #
+# Entry point                                                          #
+# ------------------------------------------------------------------ #
+
+def main():
+    parser = build_parser()
+    args   = parser.parse_args()
+
+    if args.version:
+        print(f"NEXUS Builder v{Config.VERSION}")
+        sys.exit(0)
+
+    if args.workers:
+        action_workers()
+        sys.exit(0)
+
+    if args.history:
+        action_history()
+        sys.exit(0)
+
+    if args.vision:
+        print_banner()
+        action_vision(args.vision)
+        sys.exit(0)
+
+    if args.goal:
+        print_banner()
+        action_run(args.goal)
+        sys.exit(0)
+
+    # Default: interactive menu
+    interactive_menu()
 
 
 if __name__ == "__main__":
