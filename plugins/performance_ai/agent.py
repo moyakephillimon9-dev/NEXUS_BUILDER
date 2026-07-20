@@ -111,7 +111,7 @@ class PerformanceAI:
 
         results = []
 
-        for name, obj in namespace.items():
+        for name, obj in list(namespace.items()):
 
             if not callable(obj) or name.startswith("_"):
                 continue

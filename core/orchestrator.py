@@ -533,14 +533,21 @@ class Orchestrator:
 
         print(f"\nProgress Report")
         print("-" * 40)
-        print(f"Overall Completion   : {progress.get('overall_completion_pct', 'N/A')}%")
-        print(f"Implemented Features : {progress.get('implemented_count', 0)}")
-        print(f"Planned Features     : {progress.get('planned_count', 0)}")
-        print(f"Partial Features     : {progress.get('partial_count', 0)}")
-        print(f"Unsupported Features : {progress.get('unsupported_count', 0)}")
+        pipeline_pct = progress.get("pipeline_execution_pct", progress.get("overall_completion_pct", "N/A"))
+        vision_pct   = progress.get("vision_coverage_pct")
+        print(f"Pipeline Execution   : {pipeline_pct}%")
+        print(f"  (How many of the 19 builder stages completed — not a measure of feature completeness)")
+        if vision_pct is not None:
+            print(f"Vision Coverage      : {vision_pct}%")
+            print(f"  (Of all capabilities requested in the goal/vision, this fraction is buildable now)")
+        else:
+            print(f"Vision Coverage      : 100%  (simple goal — all requested features are buildable)")
+        print(f"Implementable Now    : {progress.get('implemented_count', 0)} capabilities  (built in this run)")
+        print(f"Partial Support      : {progress.get('partial_count', 0)} capabilities  (scaffolded, implementation incomplete)")
+        print(f"Requires Future Dev  : {progress.get('unsupported_count', 0)} capabilities  (not yet buildable by NEXUS)")
         feature_map = progress.get("feature_classification", {})
         if feature_map.get("unsupported"):
-            print(f"\nFeatures NOT yet implemented (honest):")
+            print(f"\nCapabilities requiring future development (NOT implemented):")
             for f in feature_map["unsupported"][:10]:
                 print(f"  ✗ {f}")
             if len(feature_map["unsupported"]) > 10:
@@ -617,11 +624,19 @@ class Orchestrator:
         print(f"Docs Written         : {doc.get('total_files', 'N/A')} files")
         print(f"DevOps Readiness     : {dev.get('readiness_score', 'N/A')}%")
         print(f"Verification Score   : {veri.get('verification_score', 'N/A')}%")
-        print(f"Overall Completion   : {prog.get('overall_completion_pct', 'N/A')}%")
         print(f"─" * 40)
-        print(f"Fully Supported      : {cap.get('buildable_now', 0)} capabilities")
-        print(f"Partially Supported  : {cap.get('partially_buildable', 0)} capabilities")
-        print(f"Unsupported (honest) : {cap.get('not_buildable', 0)} capabilities")
+        # ── Unambiguous completion metrics ──────────────────────────── #
+        pipeline_pct = prog.get("pipeline_execution_pct", prog.get("overall_completion_pct", "N/A"))
+        vision_pct   = prog.get("vision_coverage_pct")
+        print(f"Pipeline Execution   : {pipeline_pct}%  ← builder stages that ran")
+        if vision_pct is not None:
+            print(f"Vision Coverage      : {vision_pct}%  ← requested capabilities buildable now")
+        else:
+            print(f"Vision Coverage      : 100%  ← all requested features are buildable")
+        print(f"─" * 40)
+        print(f"Implementable Now    : {cap.get('buildable_now', 0)} capabilities  (built in this run)")
+        print(f"Partial Support      : {cap.get('partially_buildable', 0)} capabilities  (scaffolded, incomplete)")
+        print(f"Requires Future Dev  : {cap.get('not_buildable', 0)} capabilities  (not yet buildable)")
         print(f"─" * 40)
         print(f"Deployment Ready     : {project.get('deployment_ready', False)}")
         print(f"Deployment Path      : {dep.get('deployment_path', 'N/A')}")

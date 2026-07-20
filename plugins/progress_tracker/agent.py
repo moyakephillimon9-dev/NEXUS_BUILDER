@@ -126,9 +126,15 @@ class ProgressTrackerAI:
             total_weight  += weight
             weighted_done += completion * weight
 
-        overall_pct = round((weighted_done / total_weight) * 100, 1)
+        # Pipeline Execution: did the builder stages run?
+        pipeline_execution_pct = round((weighted_done / total_weight) * 100, 1)
 
-        return stage_results, overall_pct
+        # Vision Coverage: what fraction of requested capabilities can be built?
+        # Comes from Capability Assessor — this is the honest buildability metric.
+        cap_report      = project.get("capability_report", {})
+        vision_coverage = cap_report.get("feasibility_score", None)  # set by ASSESS-001
+
+        return stage_results, pipeline_execution_pct, vision_coverage
 
     def _completion_to_status(self, pct: float) -> str:
         if pct >= 1.0:
@@ -232,24 +238,35 @@ class ProgressTrackerAI:
 
         print(f"[Progress Tracker AI] Calculating progress: {task_id}")
 
-        stage_results, overall_pct = self.calculate_progress(project)
-        remaining     = self._build_remaining_work(stage_results, project)
-        limitations   = self._build_limitations(project)
-        recommendations = self._build_recommendations(project, overall_pct)
-        feature_map   = self._classify_features(project)
+        stage_results, pipeline_execution_pct, vision_coverage_pct = self.calculate_progress(project)
+        remaining       = self._build_remaining_work(stage_results, project)
+        limitations     = self._build_limitations(project)
+        recommendations = self._build_recommendations(project, pipeline_execution_pct)
+        feature_map     = self._classify_features(project)
 
         report = {
-            "tracked_at":            datetime.utcnow().isoformat(),
-            "overall_completion_pct":overall_pct,
-            "stage_results":         stage_results,
-            "remaining_work":        remaining,
-            "known_limitations":     limitations,
-            "recommendations":       recommendations,
-            "feature_classification":feature_map,
-            "implemented_count":     len(feature_map["implemented"]),
-            "planned_count":         len(feature_map["planned"]),
-            "partial_count":         len(feature_map["partial"]),
-            "unsupported_count":     len(feature_map["unsupported"]),
+            "tracked_at":             datetime.utcnow().isoformat(),
+            # ── Unambiguous metrics ──────────────────────────────────────
+            # pipeline_execution_pct : did each builder stage run?
+            #   100% = all 19 pipeline stages completed.
+            #   Says nothing about whether the requested features are built.
+            "pipeline_execution_pct": pipeline_execution_pct,
+            # vision_coverage_pct : of the features requested in the goal/vision,
+            #   what fraction can actually be built by NEXUS Builder right now?
+            #   Comes directly from Capability Assessor (ASSESS-001).
+            "vision_coverage_pct":    vision_coverage_pct,
+            # ── Legacy key kept for backward compat ─────────────────────
+            "overall_completion_pct": pipeline_execution_pct,
+            # ── Stage details ────────────────────────────────────────────
+            "stage_results":          stage_results,
+            "remaining_work":         remaining,
+            "known_limitations":      limitations,
+            "recommendations":        recommendations,
+            "feature_classification": feature_map,
+            "implemented_count":      len(feature_map["implemented"]),
+            "planned_count":          len(feature_map["planned"]),
+            "partial_count":          len(feature_map["partial"]),
+            "unsupported_count":      len(feature_map["unsupported"]),
         }
 
         project["progress_report"] = report
@@ -257,8 +274,12 @@ class ProgressTrackerAI:
 
         self.memory.write(project_key, project)
 
-        print(f"[Progress Tracker AI] Overall Completion : {overall_pct}%")
-        print(f"[Progress Tracker AI] Stages Complete    : {sum(1 for s in stage_results.values() if s['status'] == 'COMPLETE')}/{len(stage_results)}")
+        stages_done = sum(1 for s in stage_results.values() if s['status'] == 'COMPLETE')
+        print(f"[Progress Tracker AI] Pipeline Execution : {pipeline_execution_pct}%  "
+              f"(stages completed: {stages_done}/{len(stage_results)})")
+        if vision_coverage_pct is not None:
+            print(f"[Progress Tracker AI] Vision Coverage    : {vision_coverage_pct}%  "
+                  f"(requested capabilities buildable now)")
         print(f"[Progress Tracker AI] Limitations        : {len(limitations)}")
         print(f"[Progress Tracker AI] Recommendations    : {len(recommendations)}")
         print(f"\n[Progress Tracker AI] Per-Stage Breakdown:")
