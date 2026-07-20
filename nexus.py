@@ -144,13 +144,19 @@ def action_history():
 def action_workers():
     """Show all registered AI workers."""
     workers = [
-        ("PLANNER-001",     "Planner AI",     "Builds a 9-phase execution manifest"),
+        ("RESEARCH-001",    "Research AI",    "Permanent intelligence & knowledge base (Stage 0)"),
+        ("PLANNER-001",     "Planner AI",     "Builds a 16-phase execution manifest"),
         ("ARCHITECT-001",   "Architect AI",   "Designs the system blueprint"),
-        ("CODER-001",       "Coder AI",       "Generates goal-aware source code"),
+        ("DATABASE-001",    "Database AI",    "SQL schema & Python sqlite3 helper generation"),
+        ("CODER-001",       "Coder AI",       "13-template type-aware source code generation"),
+        ("DESIGN-001",      "Design AI",      "Colour palette, CSS, layout spec generation"),
         ("REVIEWER-001",    "Reviewer AI",    "AST static analysis + quality gate"),
         ("TESTER-001",      "Tester AI",      "Sandboxed runtime validation"),
         ("SECURITY-001",    "Security AI",    "Vulnerability & secret scanning"),
         ("PERFORMANCE-001", "Performance AI", "Benchmarks + cyclomatic complexity"),
+        ("DOCS-001",        "Documentation AI","README, API docs, ARCHITECTURE, CHANGELOG"),
+        ("MONITOR-001",     "Monitoring AI",  "Health checks, logger config, metrics, alerts"),
+        ("INTEGRATION-001", "Integration AI", "API client, webhook handler, config"),
         ("DEVOPS-001",      "DevOps AI",      "Dockerfile, CI/CD, Makefile"),
         ("DEPLOY-001",      "Deployment AI",  "Release packaging & artifact archive"),
         ("MEMORY-001",      "Memory AI",      "Persistent knowledge graph & learning"),

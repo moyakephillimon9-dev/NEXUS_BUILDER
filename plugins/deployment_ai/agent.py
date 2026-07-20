@@ -111,14 +111,11 @@ class DeploymentAI:
 
         ##########################################
 
-        requirements = [
-            "fastapi",
-            "uvicorn",
-            "pydantic"
-        ]
+        # Use requirements detected by Coder AI for this project type
+        requirements = code.get("requirements", []) if isinstance(code, dict) else []
 
         with open(os.path.join(folder, "requirements.txt"), "w") as f:
-            f.write("\n".join(requirements))
+            f.write("\n".join(requirements) if requirements else "# No external dependencies\n")
 
         ##########################################
 
