@@ -383,22 +383,45 @@ class PlannerAI:
         total_hours    = self._estimate_hours(research, modules_data, vision_spec)
         calendar       = self._estimate_calendar_days(total_hours)
         risks          = self._build_risk_summary(vision_spec, cap_report)
+        goal           = project.get("goal", "")
+        project_type   = research.get("project_type", "generic")
+        complexity     = research.get("complexity", vision_spec.get("complexity", "MEDIUM"))
+        features       = vision_spec.get("features", []) or vision_spec.get("functional_requirements", [])
+
+        # ── NEXUS AI: generate goal-specific plan ───────────────── #
+        ai_phases = None
+        try:
+            from core.nexus_ai import NexusAI
+            nexus    = NexusAI(self.memory)
+            ai_raw   = nexus.generate_plan(goal, project_type, features, complexity)
+            ai_plan  = nexus.parse_json(ai_raw)
+            if ai_plan.get("phases") and len(ai_plan["phases"]) >= 3:
+                ai_phases    = ai_plan["phases"]
+                total_hours  = ai_plan.get("estimated_total_hours", total_hours)
+                calendar     = ai_plan.get("calendar_estimate",     calendar)
+                risks        = ai_plan.get("risks",                 risks) or risks
+                print(f"[Planner AI] Provider   : {nexus._provider_instance().name()}")
+        except Exception as _exc:
+            print(f"[Planner AI] AI planning skipped ({_exc}), using template.")
+
+        phases     = ai_phases or self._PIPELINE_PHASES
+        use_ai     = ai_phases is not None
 
         plan = {
             "generated_at":            datetime.utcnow().isoformat(),
-            "total_phases":            len(self._PIPELINE_PHASES),
-            "phases":                  self._PIPELINE_PHASES,
+            "total_phases":            len(phases),
+            "phases":                  phases,
             "estimated_total_hours":   total_hours,
             "calendar_estimate":       calendar,
             "execution_strategy":      "SEQUENTIAL_WITH_GATES",
-            "complexity":              research.get("complexity", vision_spec.get("complexity", "MEDIUM")),
+            "complexity":              complexity,
             "risks":                   risks,
-            "total_tasks":             sum(len(p["tasks"]) for p in self._PIPELINE_PHASES),
+            "total_tasks":             sum(len(p.get("tasks", [])) for p in phases),
             "total_subtasks":          sum(
                                            len(st)
-                                           for p in self._PIPELINE_PHASES
-                                           for t in p["tasks"]
-                                           for st in [t["subtasks"]]
+                                           for p in (self._PIPELINE_PHASES if not use_ai else [])
+                                           for t in p.get("tasks", [])
+                                           for st in [t.get("subtasks", [])]
                                        ),
         }
 

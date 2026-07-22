@@ -323,7 +323,33 @@ class VisionParserAI:
         goal = project.get("goal", "")
         print(f"[Vision Parser AI] Parsing input: {len(goal)} characters")
 
-        spec = self.parse(goal)
+        # ── NEXUS AI: extract requirements intelligently ─────────── #
+        spec = None
+        try:
+            from core.nexus_ai import NexusAI
+            nexus   = NexusAI(self.memory)
+            ai_raw  = nexus.generate_requirements(goal, {})
+            ai_spec = nexus.parse_json(ai_raw)
+            if ai_spec.get("functional_requirements") and ai_spec.get("features"):
+                # Merge AI extraction into full spec structure
+                base_spec = self.parse(goal)
+                base_spec["functional_requirements"]     = ai_spec.get("functional_requirements",     base_spec["functional_requirements"])
+                base_spec["non_functional_requirements"] = ai_spec.get("non_functional_requirements", base_spec["non_functional_requirements"])
+                base_spec["features"]                    = ai_spec.get("features",                    base_spec["features"])
+                base_spec["modules"]                     = ai_spec.get("modules",                     base_spec["modules"])
+                base_spec["technologies"]                = ai_spec.get("technologies",                base_spec["technologies"])
+                if ai_spec.get("complexity"):
+                    base_spec["complexity"]       = ai_spec["complexity"].upper()
+                if ai_spec.get("estimated_phases"):
+                    base_spec["estimated_phases"] = ai_spec["estimated_phases"]
+                spec = base_spec
+                print(f"[Vision Parser AI] Provider : {nexus._provider_instance().name()}")
+        except Exception as _exc:
+            print(f"[Vision Parser AI] AI parsing skipped ({_exc}), using keyword engine.")
+
+        # Fallback: existing keyword/regex parser
+        if spec is None:
+            spec = self.parse(goal)
 
         project["vision_spec"]   = spec
         project["status"]        = "VISION_PARSED"

@@ -1,0 +1,11 @@
+{
+  "ai_provider": "builtin",
+  "openrouter_base_url": "https://openrouter.ai/api/v1",
+  "openrouter_model": "meta-llama/llama-3.1-8b-instruct:free",
+  "ollama_host": "http://localhost:11434",
+  "ollama_model": "llama3.2",
+  "lmstudio_host": "http://localhost:1234",
+  "lmstudio_model": "local-model",
+  "max_tokens": 4096,
+  "temperature": 0.7
+}

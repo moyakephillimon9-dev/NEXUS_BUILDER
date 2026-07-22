@@ -314,6 +314,26 @@ class ArchitectAI:
 
         architecture = self.generate_architecture(project)
 
+        # ── NEXUS AI: enrich architecture with AI reasoning ──────── #
+        try:
+            from core.nexus_ai import NexusAI
+            nexus    = NexusAI(self.memory)
+            goal     = project.get("goal", "")
+            ptype    = architecture.get("project_type", "generic")
+            modules  = architecture.get("modules", [])
+            ai_raw   = nexus.generate_architecture(goal, ptype, modules)
+            ai_arch  = nexus.parse_json(ai_raw)
+            if ai_arch.get("architecture_pattern"):
+                # Merge AI output into the rule-based architecture
+                for key_field in ("architecture_pattern", "architecture_reason",
+                                  "framework", "database", "authentication",
+                                  "api_style", "layers"):
+                    if ai_arch.get(key_field):
+                        architecture[key_field] = ai_arch[key_field]
+                print(f"[Architect AI] Provider : {nexus._provider_instance().name()}")
+        except Exception as _exc:
+            print(f"[Architect AI] AI enrichment skipped ({_exc}), using profile.")
+
         project["architecture"] = architecture
         project["status"]       = "SOFTWARE_ARCHITECTURE_DESIGN"
 

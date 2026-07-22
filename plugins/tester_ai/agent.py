@@ -231,6 +231,22 @@ def __nexus_test():
         code_data = project.get("code", {})
 
         source = code_data.get("source", "")
+        goal   = project.get("goal", "")
+
+        ###############################################################
+        # NEXUS AI: generate and store meaningful test suite
+        ###############################################################
+
+        try:
+            from core.nexus_ai import NexusAI
+            nexus      = NexusAI(self.memory)
+            test_code  = nexus.generate_tests(source, goal)
+            if test_code and len(test_code.strip()) > 100:
+                project["generated_tests"] = test_code
+                print(f"[Tester AI] Provider   : {nexus._provider_instance().name()}")
+                print(f"[Tester AI] Test suite : {len(test_code.splitlines())} lines generated")
+        except Exception as _exc:
+            print(f"[Tester AI] AI test generation skipped ({_exc}).")
 
         ###############################################################
 

@@ -1972,10 +1972,36 @@ class CoderAI:
 
         # Prefer project_type set by Research AI
         project_type = project.get("project_type") or _detect_type(goal)
-        source       = _TEMPLATES.get(project_type, _TEMPLATES["generic"])
         requirements = _REQUIREMENTS.get(project_type, [])
 
         print(f"[Coder AI] Type       : {project_type}")
+
+        # ── NEXUS AI: generate goal-specific code ───────────────── #
+        source = None
+        try:
+            from core.nexus_ai import NexusAI
+            nexus    = NexusAI(self.memory)
+            arch     = project.get("architecture", {})
+            modules  = project.get("modules", {}).get("execution_order", [])
+            ai_code  = nexus.generate_code(goal, project_type, modules, arch)
+            if ai_code and len(ai_code.strip()) > 200:
+                source = ai_code
+                # Extract dependencies mentioned in AI output
+                import re
+                ai_reqs = re.findall(r'(?:^|\s)([a-z][a-z0-9_-]+(?:>=[\d.]+)?)\s*$',
+                                     ai_code, re.MULTILINE)
+                known_pkgs = {"fastapi", "flask", "django", "uvicorn", "pydantic",
+                              "sqlalchemy", "requests", "numpy", "pandas"}
+                extra = [r for r in ai_reqs if r.split(">=")[0] in known_pkgs]
+                if extra:
+                    requirements = list(dict.fromkeys(requirements + extra))
+                print(f"[Coder AI] Provider   : {nexus._provider_instance().name()}")
+        except Exception as _exc:
+            print(f"[Coder AI] AI generation skipped ({_exc}), using template.")
+
+        # Fallback to hardcoded template
+        if not source:
+            source = _TEMPLATES.get(project_type, _TEMPLATES["generic"])
 
         project["code"] = {
             "language":     "Python",

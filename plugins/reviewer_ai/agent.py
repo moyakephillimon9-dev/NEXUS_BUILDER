@@ -257,10 +257,36 @@ class ReviewerAI:
         source = code_data.get("source", "")
 
         ###########################################################
-        # Execute Review
+        # NEXUS AI: intelligent code review
         ###########################################################
 
-        audit = self.analyze_source_code(source)
+        audit = None
+        try:
+            from core.nexus_ai import NexusAI
+            nexus    = NexusAI(self.memory)
+            ptype    = project.get("project_type", "generic")
+            ai_raw   = nexus.generate_review(source, ptype)
+            ai_rev   = nexus.parse_json(ai_raw)
+            if isinstance(ai_rev.get("quality_score"), (int, float)):
+                audit = {
+                    "quality_score":          int(ai_rev["quality_score"]),
+                    "approved":               bool(ai_rev.get("approved", ai_rev["quality_score"] >= 70)),
+                    "technical_debt":         int(ai_rev.get("technical_debt", 100 - ai_rev["quality_score"])),
+                    "release_recommendation": ai_rev.get("release_recommendation", "APPROVED"),
+                    "issues":                 ai_rev.get("issues", []),
+                    "strengths":              ai_rev.get("strengths", []),
+                    "reviewed_at":            __import__("datetime").datetime.utcnow().isoformat(),
+                }
+                print(f"[Reviewer AI] Provider   : {nexus._provider_instance().name()}")
+        except Exception as _exc:
+            print(f"[Reviewer AI] AI review skipped ({_exc}), using static analysis.")
+
+        ###########################################################
+        # Fallback: existing static analysis
+        ###########################################################
+
+        if not audit:
+            audit = self.analyze_source_code(source)
 
         project["review"] = audit
 

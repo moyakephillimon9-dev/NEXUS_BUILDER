@@ -219,6 +219,86 @@ def action_vision(source: str):
 # Interactive menu                                                     #
 # ------------------------------------------------------------------ #
 
+def action_ai_settings():
+    """Interactive AI provider settings panel."""
+    from core.provider_manager import ProviderManager
+    from core.settings import Settings
+
+    while True:
+        providers = ProviderManager.list_providers()
+
+        print("\n  AI PROVIDER SETTINGS")
+        print("  " + "=" * 60)
+        print(f"  {'#':<4} {'Provider':<22} {'Status':<12} {'Active'}")
+        print("  " + "-" * 60)
+
+        pid_map = {}
+        for i, p in enumerate(providers, 1):
+            status  = "✓ Available" if p["available"] else "✗ Offline"
+            active  = "◀ ACTIVE"   if p["active"]    else ""
+            print(f"  [{i}]  {p['name']:<22} {status:<12} {active}")
+            pid_map[str(i)] = p["id"]
+
+        print("\n  Current model settings:")
+        active_id = Settings.get("ai_provider", "builtin")
+        if active_id == "openrouter":
+            print(f"    OpenRouter model : {Settings.get('openrouter_model')}")
+            print(f"    (Free models: meta-llama/llama-3.1-8b-instruct:free,")
+            print(f"                  mistralai/mistral-7b-instruct:free,")
+            print(f"                  google/gemma-2-9b-it:free)")
+        elif active_id == "ollama":
+            print(f"    Ollama host  : {Settings.get('ollama_host')}")
+            print(f"    Ollama model : {Settings.get('ollama_model')}")
+        elif active_id == "lmstudio":
+            print(f"    LM Studio host  : {Settings.get('lmstudio_host')}")
+            print(f"    LM Studio model : {Settings.get('lmstudio_model')}")
+
+        print("\n  [1-4] Switch provider  [M] Change model/host  [B] Back")
+        print()
+
+        choice = input("  > ").strip().upper()
+
+        if choice in pid_map:
+            new_id   = pid_map[choice]
+            new_prov = next(p for p in providers if p["id"] == new_id)
+            if not new_prov["available"] and new_id != "builtin":
+                print(f"\n  ⚠  {new_prov['name']} is not reachable.")
+                print(f"     {new_prov['notes']}")
+                confirm = input("  Switch anyway? (y/N) ").strip().lower()
+                if confirm != "y":
+                    continue
+            ProviderManager.set_provider(new_id)
+            print(f"\n  ✓  AI provider switched to: {new_prov['name']}")
+
+        elif choice == "M":
+            active_id = Settings.get("ai_provider", "builtin")
+            if active_id == "openrouter":
+                model = input(f"\n  OpenRouter model [{Settings.get('openrouter_model')}]: ").strip()
+                if model:
+                    Settings.set("openrouter_model", model)
+                    print(f"  ✓  Model set to: {model}")
+            elif active_id == "ollama":
+                host  = input(f"\n  Ollama host [{Settings.get('ollama_host')}]: ").strip()
+                model = input(f"  Ollama model [{Settings.get('ollama_model')}]: ").strip()
+                if host:  Settings.set("ollama_host",  host)
+                if model: Settings.set("ollama_model", model)
+                print("  ✓  Ollama settings saved.")
+            elif active_id == "lmstudio":
+                host  = input(f"\n  LM Studio host [{Settings.get('lmstudio_host')}]: ").strip()
+                model = input(f"  LM Studio model [{Settings.get('lmstudio_model')}]: ").strip()
+                if host:  Settings.set("lmstudio_host",  host)
+                if model: Settings.set("lmstudio_model", model)
+                print("  ✓  LM Studio settings saved.")
+            else:
+                print("  Built-in engine has no configurable model.")
+
+        elif choice in ("B", "BACK", ""):
+            break
+
+        else:
+            print("  Unknown option.")
+
+
 def interactive_menu():
     """Full interactive CLI menu."""
     print_banner()
@@ -231,6 +311,7 @@ def interactive_menu():
         print("  [3]  List all AI workers")
         print("  [4]  View project history")
         print("  [5]  About NEXUS Builder")
+        print("  [6]  AI Provider Settings")
         print("  [Q]  Quit")
         print()
 
@@ -259,12 +340,15 @@ def interactive_menu():
         elif choice == "5":
             action_about()
 
+        elif choice == "6":
+            action_ai_settings()
+
         elif choice in ("Q", "QUIT", "EXIT"):
             print("\n  NEXUS Builder shutting down. Goodbye.\n")
             break
 
         else:
-            print("  Unknown option. Please choose 1–5 or Q.")
+            print("  Unknown option. Please choose 1–6 or Q.")
 
 
 # ------------------------------------------------------------------ #

@@ -3,7 +3,7 @@
         "engine": "NEXUS RESEARCH ENGINE",
         "version": "1.0.0",
         "created": "2026-07-20T14:56:15.680909+00:00",
-        "last_updated": "2026-07-22T15:44:34.395409+00:00"
+        "last_updated": "2026-07-22T16:08:12.755882+00:00"
     },
     "topics": {
         "c98f33cf8e23743f": {
@@ -1284,6 +1284,197 @@
                 "Separate computation from presentation.",
                 "Validate all inputs before processing.",
                 "Use Decimal for financial calculations."
+            ]
+        },
+        "5c96cbb698942a72": {
+            "researched_at": "2026-07-22T16:07:50.115471+00:00",
+            "goal": "Build a task manager API",
+            "project_type": "todo_app",
+            "verified": true,
+            "concepts": [
+                "task",
+                "manager",
+                "api"
+            ],
+            "sources": [
+                {
+                    "source": "Internal Engineering Pattern Library",
+                    "project_type": "todo_app",
+                    "paradigm": "CRUD",
+                    "patterns": [
+                        "Repository Pattern",
+                        "Command Pattern",
+                        "Persistent Storage"
+                    ],
+                    "stack": {
+                        "language": "Python",
+                        "storage": "JSON/SQLite",
+                        "deps": []
+                    },
+                    "complexity": "LOW",
+                    "estimated_hours": 3,
+                    "risks": [
+                        "Data loss on crash",
+                        "Concurrent writes"
+                    ],
+                    "best_practices": [
+                        "Use atomic writes to prevent data corruption.",
+                        "Assign unique IDs to all tasks.",
+                        "Support filtering and searching."
+                    ]
+                },
+                {
+                    "source": "Memory AI Historical Database",
+                    "past_successes": 9,
+                    "past_failures": 0,
+                    "success_lessons": [
+                        "Build a calculator application",
+                        "Build a calculator application",
+                        "Build a todo app"
+                    ],
+                    "failure_lessons": [],
+                    "historical_frameworks": [
+                        "FastAPI",
+                        "Flask",
+                        "Python stdlib"
+                    ]
+                },
+                {
+                    "source": "Goal Semantic Analysis",
+                    "concepts": [
+                        "task",
+                        "manager",
+                        "api"
+                    ],
+                    "goal_length_words": 5,
+                    "domain_keywords": [
+                        "task",
+                        "api"
+                    ]
+                }
+            ],
+            "recommended_stack": {
+                "language": "Python",
+                "storage": "JSON/SQLite",
+                "deps": []
+            },
+            "recommended_patterns": [
+                "Repository Pattern",
+                "Command Pattern",
+                "Persistent Storage"
+            ],
+            "complexity": "LOW",
+            "estimated_hours": 3,
+            "risks": [
+                "Data loss on crash",
+                "Concurrent writes"
+            ],
+            "best_practices": [
+                "Use atomic writes to prevent data corruption.",
+                "Assign unique IDs to all tasks.",
+                "Support filtering and searching."
+            ]
+        },
+        "a3afc2e254346bcf": {
+            "researched_at": "2026-07-22T16:08:12.755508+00:00",
+            "goal": "Build a REST API for a blog",
+            "project_type": "rest_api",
+            "verified": true,
+            "concepts": [
+                "rest",
+                "api",
+                "blog"
+            ],
+            "sources": [
+                {
+                    "source": "Internal Engineering Pattern Library",
+                    "project_type": "rest_api",
+                    "paradigm": "REST",
+                    "patterns": [
+                        "Repository Pattern",
+                        "Service Layer",
+                        "DTO",
+                        "Pagination"
+                    ],
+                    "stack": {
+                        "framework": "FastAPI",
+                        "db": "PostgreSQL",
+                        "deps": [
+                            "fastapi",
+                            "uvicorn"
+                        ]
+                    },
+                    "complexity": "MEDIUM",
+                    "estimated_hours": 6,
+                    "risks": [
+                        "Authentication bypass",
+                        "Rate limiting",
+                        "Data validation"
+                    ],
+                    "best_practices": [
+                        "Version your API from day one.",
+                        "Always return consistent error envelopes.",
+                        "Document every endpoint with OpenAPI.",
+                        "Implement rate limiting."
+                    ]
+                },
+                {
+                    "source": "Memory AI Historical Database",
+                    "past_successes": 10,
+                    "past_failures": 0,
+                    "success_lessons": [
+                        "Build a calculator application",
+                        "Build a calculator application",
+                        "Build a todo app"
+                    ],
+                    "failure_lessons": [],
+                    "historical_frameworks": [
+                        "FastAPI",
+                        "Python stdlib",
+                        "Flask"
+                    ]
+                },
+                {
+                    "source": "Goal Semantic Analysis",
+                    "concepts": [
+                        "rest",
+                        "api",
+                        "blog"
+                    ],
+                    "goal_length_words": 7,
+                    "domain_keywords": [
+                        "rest",
+                        "api",
+                        "blog"
+                    ]
+                }
+            ],
+            "recommended_stack": {
+                "framework": "FastAPI",
+                "db": "PostgreSQL",
+                "deps": [
+                    "fastapi",
+                    "uvicorn"
+                ]
+            },
+            "recommended_patterns": [
+                "Repository Pattern",
+                "Service Layer",
+                "DTO",
+                "Pagination"
+            ],
+            "complexity": "MEDIUM",
+            "estimated_hours": 6,
+            "risks": [
+                "Authentication bypass",
+                "Rate limiting",
+                "Data validation"
+            ],
+            "best_practices": [
+                "Version your API from day one.",
+                "Always return consistent error envelopes.",
+                "Document every endpoint with OpenAPI.",
+                "Implement rate limiting."
             ]
         }
     }
