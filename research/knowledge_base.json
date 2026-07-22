@@ -3,7 +3,7 @@
         "engine": "NEXUS RESEARCH ENGINE",
         "version": "1.0.0",
         "created": "2026-07-20T14:56:15.680909+00:00",
-        "last_updated": "2026-07-20T15:43:52.561653+00:00"
+        "last_updated": "2026-07-22T15:44:34.395409+00:00"
     },
     "topics": {
         "c98f33cf8e23743f": {
@@ -1200,6 +1200,90 @@
                 "Use HTTPS in production.",
                 "Implement CSRF protection.",
                 "Follow the principle of least privilege."
+            ]
+        },
+        "de3e03a5b3b6d318": {
+            "researched_at": "2026-07-22T15:44:34.395039+00:00",
+            "goal": "Build a simple calculator",
+            "project_type": "calculator",
+            "verified": true,
+            "concepts": [
+                "calculator"
+            ],
+            "sources": [
+                {
+                    "source": "Internal Engineering Pattern Library",
+                    "project_type": "calculator",
+                    "paradigm": "Functional",
+                    "patterns": [
+                        "REPL Loop",
+                        "Function-per-operation",
+                        "Error Boundaries"
+                    ],
+                    "stack": {
+                        "language": "Python",
+                        "testing": "unittest",
+                        "deps": []
+                    },
+                    "complexity": "LOW",
+                    "estimated_hours": 2,
+                    "risks": [
+                        "Division by zero",
+                        "Input validation"
+                    ],
+                    "best_practices": [
+                        "Separate computation from presentation.",
+                        "Validate all inputs before processing.",
+                        "Use Decimal for financial calculations."
+                    ]
+                },
+                {
+                    "source": "Memory AI Historical Database",
+                    "past_successes": 8,
+                    "past_failures": 0,
+                    "success_lessons": [
+                        "Build a calculator application",
+                        "Build a calculator application",
+                        "Build a todo app"
+                    ],
+                    "failure_lessons": [],
+                    "historical_frameworks": [
+                        "Python stdlib",
+                        "FastAPI",
+                        "Flask"
+                    ]
+                },
+                {
+                    "source": "Goal Semantic Analysis",
+                    "concepts": [
+                        "calculator"
+                    ],
+                    "goal_length_words": 4,
+                    "domain_keywords": [
+                        "calculator"
+                    ]
+                }
+            ],
+            "recommended_stack": {
+                "language": "Python",
+                "testing": "unittest",
+                "deps": []
+            },
+            "recommended_patterns": [
+                "REPL Loop",
+                "Function-per-operation",
+                "Error Boundaries"
+            ],
+            "complexity": "LOW",
+            "estimated_hours": 2,
+            "risks": [
+                "Division by zero",
+                "Input validation"
+            ],
+            "best_practices": [
+                "Separate computation from presentation.",
+                "Validate all inputs before processing.",
+                "Use Decimal for financial calculations."
             ]
         }
     }

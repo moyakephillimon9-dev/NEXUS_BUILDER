@@ -150,7 +150,7 @@ def action_about():
 
 def action_history():
     """Show completed projects from the projects directory."""
-    projects_dir = getattr(Config, "PROJECTS_DIR", "projects")
+    projects_dir = str(getattr(Config, "PROJECTS_FOLDER", Config.ROOT / "projects"))
     if not os.path.isdir(projects_dir):
         print(f"\n  No project history found (folder '{projects_dir}' does not exist).\n")
         return

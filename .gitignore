@@ -1,4 +1,17 @@
 __pycache__/
 *.pyc
+*.pyo
+
+# Runtime-generated output
 deployments/
 projects/
+
+# Runtime logs
+logs/
+
+# Memory backups (auto-created by Memory AI)
+memory/*.bak
+memory/backups/
+
+# Research and knowledge caches
+research/
